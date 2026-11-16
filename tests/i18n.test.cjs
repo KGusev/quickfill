@@ -9,8 +9,9 @@ const ru = JSON.parse(read('_locales/ru/messages.json'));
 
 test('both catalogs cover every runtime and manifest message', () => {
   assert.deepEqual(Object.keys(ru).sort(), Object.keys(en).sort());
-  const references = ['content.js', 'background.js'].flatMap(file =>
-    [...read(file).matchAll(/\bt\('([^']+)'/g)].map(match => match[1]));
+  const references = ['content.js', 'background.js', 'surface.js'].flatMap(file =>
+    [...read(file).matchAll(/\bt\('([^']+)'\s*[,)]/g)].map(match => match[1]));
+  references.push(...['none','trim','upper','lower','digits','format'].map(x=>'transform_'+x),...['person','company','address','testAccount'].map(x=>'template_'+x),...['off','button','auto'].map(x=>'suggestions_'+x));
   references.push(...[...read('manifest.json').matchAll(/__MSG_(\w+)__/g)].map(match => match[1]));
   for (const messages of [en, ru]) {
     for (const key of references) assert.ok(messages[key]?.message.trim(), `Missing translation: ${key}`);

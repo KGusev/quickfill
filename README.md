@@ -6,25 +6,103 @@ A dependency-free Chromium Manifest V3 extension for reusable form data.
 
 1. Open `chrome://extensions` and enable **Developer mode**.
 2. Choose **Load unpacked** and select this repository's `extension/` directory.
-3. Open or reload a normal web page. Press **Ctrl+B**, or click the extension's toolbar icon.
+3. Open or reload a normal web page. Press **Ctrl+B**, or click the extension's toolbar icon. The first-run **Quick start** walkthrough can create an example entry and let you practice on a sample field.
 4. Create an entry, select a color, and add key/value pairs such as `email`, `name`, and `company`.
 
-If Ctrl+B is unassigned or conflicts with another shortcut, assign it under `chrome://extensions/shortcuts`. On macOS the suggested shortcut is Control+B.
+Use **Ctrl+Shift+Space** for the command palette. If Ctrl+B is unassigned or conflicts with another shortcut, assign it under `chrome://extensions/shortcuts`. On macOS the suggested shortcut is Control+B.
+
+## Interface
+
+The compact header keeps search and New entry within reach. Settings has its own icon; Import, Export, and the command palette are in the header's three-dot menu. Entry menus contain Edit, Duplicate, and Delete. Pin and expand/collapse controls remain beside the title, with Fill form below it.
+
+Use Filters to show collection/tag selectors, remove individual filter chips, or clear search and filters from an empty result. Search highlights matching text and reveals matching values. Long values have a Show full value disclosure.
+
+Editor, preview, and settings screens have a Back control instead of registry search. Back and closing the sidebar preserve the current editor draft in that page until reload; reopening always starts at the entry list with Resume draft and Discard draft. Cancel discards the active draft. Drafts are not written to extension storage. Save and Cancel remain visible while scrolling. Website restrictions, tags, collections, and transformations are expandable.
+
+Inline suggestions show the value first and entry/key below it. Entry colors identify suggestions; hover and keyboard focus trigger one sparkle burst followed by a static glow. Reduced-motion mode uses only the highlight. The popup measures available space and opens above or below its field. The command palette groups values and actions, keeps typing focus in search, and uses arrow keys plus Enter to select (Page Up/Down moves five results). Search and controls remain visible while results scroll. Matching text is highlighted, counts explain truncated lists, and selected long values have an expandable full preview. The palette appears above the sidebar, temporarily prevents interaction with it, and restores the previous control on Escape. Value backgrounds use their entry color at 5% opacity; focus outlines and magic effects use that same color.
+
+Form preview summarizes ready, review, and skipped fields, with an optional Needs attention filter. Its Fill button counts actionable fields. Saving a page value offers Create new entry and shows existing/new values before replacement. Import previews show additions, updates, and unchanged duplicates before applying.
+
+The footer identifies the selected field and shows feedback with Undo when available. With the sidebar closed, feedback appears in a dismissible page notification. Settings groups general options, website preferences (including appearance), and data tools. Violet controls use white labels with a darker surface tint for contrast; the brand accent remains `#a05dff`.
 
 ## Languages
 
-The extension follows Chrome's interface language: English or Russian, with English as the fallback for other languages. Sidebar text, context menus, confirmations, validation messages, and extension metadata are translated. Saved entry names, keys, and values are kept as entered.
+Open **Settings → Language** and choose **Auto**, **English**, or **Русский**. The selection is saved and updates sidebars in open tabs, context menus, and the toolbar tooltip immediately. Auto follows Chrome's interface language, falling back to English. The extension listing and shortcut description in Chrome always follow the browser language. Entry names, keys, and values stay as entered.
 
-Translations live in `extension/_locales/en/messages.json` and `extension/_locales/ru/messages.json`, using [Chrome's i18n API](https://developer.chrome.com/docs/extensions/reference/api/i18n). After changing Chrome's interface language, restart Chrome and reload open pages.
+Translations live in `extension/_locales/en/messages.json` and `extension/_locales/ru/messages.json`. The manifest uses [Chrome's i18n API](https://developer.chrome.com/docs/extensions/reference/api/i18n); the sidebar uses those same catalogs for the language override.
 
 ## Fill and save
 
-- **Right-click an input → Quickfill: suggest saved values.** The sidebar shows compatible values whose keys match the field's name, ID, label, placeholder, or autocomplete hint. Common aliases such as `phone` / `tel` and `first_name` / `given-name` work together. Click a suggestion to fill the field.
+- **Focus a field → Quickfill button.** Inline suggestions work without opening the sidebar. Use arrow keys to navigate and Escape to close; website settings can show the button or disable inline suggestions. Quickfill opens only when requested and moves focus into its own list; typing and native autofill keep control of the page field. Selecting a value keeps focus on Quickfill instead of refocusing the page input and reopening native suggestions. Older automatic-mode preferences are treated as button mode.
+- **Right-click an input → Quickfill: suggest saved values.** The sidebar shows compatible values whose keys match the field's name, ID, label, placeholder, or autocomplete hint. English and Russian aliases such as `phone` / `tel` / `телефон` and `first_name` / `given-name` / `имя` work together. Suggestions explain whether they matched a field hint or a saved association. **Change field association** lets you correct the key or clear the association without changing entry values. Click a suggestion to fill the field.
 - **Right-click an input → Quickfill: save this field value…** Choose an entry and key, review the value, and save. This replaces that entry's existing value for the key. The field association is remembered for that origin, URL path, form, and field identity.
 - **Drag a value from the sidebar into an input.** The value replaces the field's contents and emits `input` and `change` events. Alternatively, focus a field, then click a sidebar value.
-- Search entries by name, key, or value; edit names, colors, and values; delete entries with confirmation.
+- **Undo last fill** restores the preceding single-field or whole-form fill. Fields changed since filling or removed from the page are skipped. Undo is kept in memory per frame and cleared on page reload.
+- **Fill form…** on an entry opens a field-by-field preview. Focus a field first to limit filling to its form; otherwise the preview includes visible fields in the current document, including open shadow roots. Resolve ambiguous matches, leave unwanted fields on Skip, and apply. **Fill empty fields only** is enabled by default; uncheck it deliberately to overwrite existing content. Every selected row shows the resolved value and whether it will be skipped. Fields changed during the preview are skipped. Password fields are excluded from whole-form filling.
+- Search entries by name, key, or value. Searching a key or value narrows the displayed values; matching an entry name displays all its values. From search, use **↑/↓** to navigate results and **Enter** to fill. **Esc** closes the sidebar and resets it to the entry list.
+- **☆/★** pins an entry. Pinned entries appear first, followed by entries for the current website. **Collapse/Expand** controls long entries; both settings persist.
+- Edit names, colors, and values; delete entries with confirmation. In **Websites**, enter one exact origin per line, such as `https://example.com`. Leave it blank for all websites. Scheme and port matter; subdomains are separate. **Show entries for all websites** temporarily reveals other entries.
 
 The sidebar overlays the right edge of the page. Frames have independent sidebars so a context-menu action stays with its field. Only explicitly selected values are filled; nothing is submitted automatically.
+
+## Faster workflows
+
+- **Command palette:** Ctrl+Shift+Space or the sidebar button searches all saved entries and actions, independently of sidebar filters. Choose “Fill with …” to review a form, save the current field, undo, create an entry, open settings, or start the walkthrough. Arrow keys navigate; Tab stays within the dialog; Escape returns focus.
+- **Templates and copies:** New entries can start from Person, Company, Address, or Test Account templates. **Duplicate** opens a separate draft with the same values, tags, collection, website restrictions, and transformations. Save it to create the copy.
+- **Tags and collections:** Add comma-separated tags and a collection in the entry editor. Their sidebar filters combine with search and website filtering. Text search also matches tags and collection names.
+- **Website preferences:** Settings includes the current origin's preferred entry, sidebar width (320–640 px), inline suggestion behavior, and excluded fields. Preferences persist and update open tabs. Exclusions apply to single-field fills, drag/drop, inline suggestions, and form previews.
+- **Accessibility:** Controls have visible keyboard focus, labels, status announcements, and larger click targets. The UI respects reduced-motion preferences. The walkthrough can be reopened from Settings.
+
+## Saved mappings and transformations
+
+Form preview lets you choose any entry key for each visible field, even if automatic matching found nothing. **Save form mapping** remembers the choices and transformations for this entry, origin, and URL path. Each rule retains a DOM locator and field identity, including open shadow roots. Removed fields, changed identities, and missing keys are reported on the next preview. Review/remap current fields and save to replace the old rules, including broken ones.
+
+Each value's **Value options** sets its default transformation: unchanged, trim whitespace, uppercase, lowercase, digits only, or a format pattern. A form mapping can override it for a specific field. Saved source values remain unchanged. In a format pattern, `{value}` inserts the source string; otherwise each `#` takes the next digit, for example `+# (###) ###-####`.
+
+## Generated values
+
+Saved values can contain these explicit variables:
+
+| Variable | Value |
+| --- | --- |
+| `{{date}}` | Current UTC date, `YYYY-MM-DD` |
+| `{{uuid}}` | UUID generated for the preview |
+| `{{timestamp}}` | Unix timestamp in milliseconds |
+| `{{counter}}` | Increasing number local to this entry |
+
+For example, `test+{{counter}}@example.com` produces numbered test addresses. Single-field generation opens a review before filling. Form previews share one generation context across their fields; Apply uses exactly the displayed values. Transformations run after variable resolution. Unknown variables are rejected; no expressions or scripts are evaluated.
+
+Counters are reserved atomically when a preview uses them, so cancelled previews can leave gaps. Undo does not decrement them. Counters and walkthrough completion are local preferences and are not exported. Separate browser profiles have independent sequences.
+
+Fill failures distinguish incompatible values, disabled/read-only fields, excluded fields, cancelled input events, removed fields, and immediate page overrides. Form previews also skip fields changed after review. Applications that overwrite values asynchronously can still require their own editor integration.
+
+## Backup and sharing
+
+**Export** downloads `quickfill-backup.json`. **Import** accepts a file or pasted JSON and shows a preview before writing anything. Duplicates are matched by entry ID:
+
+- **Merge:** retain existing keys, overwrite matching keys with imported values, and use imported entry metadata.
+- **Replace:** replace only duplicate entries entirely; unrelated entries remain.
+- **Keep existing:** skip duplicate entries while adding new ones.
+
+Merge and replace overwrite conflicting field associations; keep-existing preserves them. Backups contain plain saved values, tags, collections, transformations, site restrictions, pin/collapse settings, field associations, saved mappings, and website preferences. They do not include the UI language preference, generated-value counters, or walkthrough completion. Older version-1 backups without the new fields still import. Mapping and website-preference conflicts follow the same merge/replace versus keep-existing policy as associations. Limits are 2 MB per backup, 500 entries, and 200 keys per entry. Invalid files are rejected before storage changes.
+
+Example backup format:
+
+```json
+{
+  "version": 1,
+  "entries": [{
+    "id": "work-profile",
+    "name": "Work",
+    "color": "#315de4",
+    "values": {"email": "alex@example.com", "country": "Russia"},
+    "sites": ["https://example.com"],
+    "pinned": true,
+    "collapsed": false
+  }],
+  "associations": {}
+}
+```
 
 ## Browser playground
 
@@ -34,7 +112,7 @@ From the repository root:
 python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
-Open **http://localhost:8765/tests/test.html** after loading the extension. The page includes a manual workflow, multiple input types, a custom association field, read-only and disabled fields, an iframe, dynamic inputs, and a live event log.
+Open **http://localhost:8765/tests/test.html** after loading the extension. The page includes a manual workflow, multiple input types, a custom association field, read-only and disabled fields, an iframe, dynamic inputs, and a live event log. **tests/advanced.html** adds a checklist for the new features, ambiguous matches, Russian labels, a select, a rich editor, and separate forms. **tests/power.html** exercises inline controls, mappings, variables, and website preferences. **tests/frameworks.html** tests React and Vue controls after fetching the test dependencies below.
 
 You can also open `tests/test.html` directly after enabling **Allow access to file URLs** in the extension's details.
 
@@ -46,7 +124,7 @@ node --check extension/background.js
 node --check extension/content.js
 ```
 
-`tests/browser.py` exercises the actual extension in Chrome through the DevTools Protocol. It checks creation/color, suggestions, filling events, drag/drop handlers, saving associations, reload persistence, frame filling, and registered Ctrl+B binding. Native context-menu selection, physical drag gestures, and shortcut activation still need the manual playground check.
+`tests/browser.py` exercises the actual extension in Chrome through the DevTools Protocol. It checks creation/color, suggestions, filling events, drag/drop handlers, saving associations, reload persistence, frame filling, and registered Ctrl+B binding. Native context-menu selection, physical drag gestures, shortcut activation, and the visual interaction with Chrome’s saved-address popup still need a headed manual check. The autofill-coexistence suite verifies explicit activation, focus ownership, launcher placement, unchanged autocomplete attributes, untouched page arrow/Enter keys, and stale-popup cleanup.
 
 To reproduce the browser checks, install Python's `websocket-client`, serve the repo as above, and start a **disposable** Chrome profile:
 
@@ -58,27 +136,38 @@ google-chrome --headless=new --disable-gpu \
   --user-data-dir=/tmp/quickfill-test-profile about:blank
 ```
 
-Load `extension/` with the CDP `Extensions.loadUnpacked` command using its absolute path (recent branded Chrome may ignore `--load-extension`). Pass the returned extension ID to:
+Fetch pinned test-only distributions (React 18.3.1 and Vue 3.5.13), then load the unpacked extension and run the complete suite:
 
 ```sh
-python3 tests/browser.py EXTENSION_ID en
+python3 tests/fetch-frameworks.py
+python3 tests/run-browser.py en
 ```
+
+The runner loads `extension/` using CDP `Extensions.loadUnpacked`, runs the basic, advanced, power-feature, autofill-coexistence, and UI checks, and closes the disposable browser. No framework packages are included in the extension. The advanced suite covers undo, form preview/ambiguity/conflicts, select and rich-text filling, associations, sites, pin/collapse, keyboard navigation, import/export, language persistence, and React/Vue model updates on fill and undo. The power-feature suite adds inline filling, palette navigation/focus trapping, saved and broken mappings, empty-only filling, stable generated previews, transformations, templates, duplication, tags/collections, website preferences/exclusions, and onboarding.
 
 For Russian checks, start the disposable browser with the Russian UI locale and pass `ru` instead of `en`. On Linux, launch with `LANGUAGE=ru` in the environment and `--lang=ru`. The browser test verifies translated labels and placeholders against the selected catalog while exercising the same filling workflow.
 
-The browser test clears this extension's storage in the test profile. It writes a screenshot to `/tmp/quickfill-test.png`.
+The UI suite checks keyboard menus, filters, draft recovery, field validation, replacement review, preview counts, import summaries, palette focus, popup positioning, reduced motion, and 320 px sidebars at 200% browser zoom. Screen captures are written to `/tmp/quickfill-polish-en-screens/` or `/tmp/quickfill-polish-ru-screens/`.
+
+The browser test clears this extension's storage in the test profile. It writes a screenshot to `/tmp/quickfill-test.png` and test exports to `/tmp/quickfill-exports/`.
 
 ## Storage and scope
 
 Data is stored in `chrome.storage.local`, with no server, telemetry, or network requests. It is not encrypted and is not a password vault. Extension removal clears its local data. Editing an entry replaces that entry; simultaneous edits to the same entry use the last saved version. Worker-side serialization preserves unrelated mutations.
 
-Supported targets are editable text-like inputs and textareas, including dynamically added fields and open shadow roots. Disabled/read-only fields, select boxes, contenteditable editors, closed shadow roots, browser-internal pages, the Chrome Web Store, and built-in PDF viewers are outside this version's scope. Site scripts can still reject or override filled values. Date/number/URL/email compatibility checks are basic; the site's own validation remains authoritative.
+Supported targets are editable text-like inputs, textareas, native selects, and contenteditable editors, including dynamic fields and open shadow roots. Selects accept an option's value or visible label; a fill selects one option, and undo restores the previous selection. Rich-text filling inserts plain text; undo restores the original DOM markup. Cancelled `beforeinput` events are respected, and successful writes emit `input` and `change` events.
+
+Controlled input/select/editor examples are tested with React and Vue. Editors with their own document models can still reject or override DOM changes; this is not a dedicated adapter for every rich-text library. Disabled/read-only fields, closed shadow roots, browser-internal pages, the Chrome Web Store, and built-in PDF viewers remain unsupported. Date/number/URL/email compatibility checks are basic; the site's validation remains authoritative.
 
 ## Files
 
 - `extension/manifest.json`: permissions, shortcut, and content script registration.
 - `extension/background.js`: native context-menu actions, toolbar/shortcut routing, serialized storage mutations.
-- `extension/core.js`: key normalization, aliases, and compatibility matching.
+- `extension/core.js`: key normalization, aliases, matching, site ordering, and message formatting.
+- `extension/registry.js`: backup, mapping, and preference validation and duplicate-resolution rules.
+- `extension/power.js`: templates, transformations, and generated-value resolution.
+- `extension/surface.js`: inline controls and keyboard command dialog.
+- `extension/fields.js`: field detection, snapshots, filling, and undo.
 - `extension/content.js`: Shadow DOM sidebar, entry forms, field tracking, fill and drop handlers.
 - `extension/styles.js`: isolated sidebar styling.
 - `extension/icons/`: editable SVG logo and transparent PNG icons at 16, 32, 48, and 128 pixels, registered for the toolbar and extension listing.

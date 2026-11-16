@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "__MSG_extensionDescription__",
   "permissions": [
     "storage",
@@ -24,6 +24,12 @@
         "mac": "MacCtrl+B"
       },
       "description": "__MSG_toggleCommand__"
+    },
+    "command-palette": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Space"
+      },
+      "description": "__MSG_paletteShortcut__"
     }
   },
   "content_scripts": [
@@ -35,7 +41,11 @@
       ],
       "js": [
         "core.js",
+        "power.js",
+        "registry.js",
+        "fields.js",
         "styles.js",
+        "surface.js",
         "content.js"
       ],
       "all_frames": true,

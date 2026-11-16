@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Quickfill advanced playground</title><style>body{font:16px system-ui;margin:32px;max-width:700px}input,textarea,select,[contenteditable]{display:block;padding:8px;border:1px solid #bbc;min-height:24px;margin:8px 0 20px}fieldset{margin:20px 0}a{margin-right:20px}</style>
+<h1>Advanced Quickfill playground</h1><p><a href="test.html">Basic tests</a><a href="frameworks.html">React / Vue tests</a></p>
+<p>Try a profile with keys <code>email</code>, <code>email_address</code>, <code>first_name</code>, <code>country</code>, and <code>notes</code>. Set country to “Russia”. The email keys create an ambiguous match in the form preview.</p>
+<details><summary>Manual feature checklist</summary><ol>
+<li>Pin and collapse an entry, reload the page, then verify both settings persist.</li>
+<li>Focus a field, search for a value, use ↑/↓ and Enter to fill it, then Undo.</li>
+<li>Choose Fill form, resolve the ambiguous email match, and apply. Verify the separate form stays unchanged.</li>
+<li>Fill the rich editor, then Undo and verify its original bold text returns.</li>
+<li>Export a backup, change a value, then import it. Review the preview before testing merge, replace, and keep-existing.</li>
+<li>Set a website on an entry and try another origin. Toggle Show entries for all websites.</li>
+<li>Open Settings and switch Auto / English / Русский. Check menus and another open tab.</li>
+<li>Change a field association, verify its explanation in suggestions, then clear it.</li>
+</ol></details><form id="advanced"><label for="mail">Электронная почта</label><input id="mail" type="email" name="email" value="before@example.com">
+<label for="first">Имя</label><input id="first" value="Before">
+<label for="country">Страна</label><select id="country" name="country"><option value="US">United States</option><option value="RU">Russia</option><option value="XX" disabled>Blocked</option></select>
+<div id="rich" contenteditable="true" role="textbox" aria-label="notes"><strong>Original</strong> notes</div>
+<label for="locked">Read only</label><input id="locked" name="email" readonly value="locked@example.com">
+<fieldset disabled><input id="disabled-parent" name="email" value="disabled@example.com"></fieldset>
+<input type="password" name="password" value="unchanged"><button type="submit">Test submit</button></form>
+<form id="separate"><label>Separate form<input id="other-email" name="email" value="other@example.com"></label></form>
+<div id="shadow-host"></div><output id="events"></output>
+<script>
+window.submissions=0;document.addEventListener('submit',e=>{e.preventDefault();submissions++});
+document.addEventListener('input',e=>{document.querySelector('#events').textContent=e.target.id+': input'});
+const shadow=document.querySelector('#shadow-host').attachShadow({mode:'open'});shadow.innerHTML='<label>Shadow email <input name="email" aria-label="email"></label>';
+</script></html>

@@ -39,7 +39,7 @@
     "message": "Поиск записей"
   },
   "footerHint": {
-    "message": "Перетащите значение в поле · Ctrl+B — открыть/скрыть"
+    "message": "Перетащите в поле · ↑/↓ и Enter · Esc — закрыть"
   },
   "selectField": {
     "message": "Сначала выберите поле на странице, доступное для ввода."
@@ -63,13 +63,13 @@
     "message": "Значений пока нет. Нажмите «Изменить», чтобы добавить их."
   },
   "newEntryButton": {
-    "message": "+ Новая запись"
+    "message": "Создать"
   },
   "suggestedValues": {
     "message": "Подходящие значения для этого поля"
   },
   "noMatchingKeys": {
-    "message": "Подходящих ключей пока нет. Сохраните поле, чтобы связать его с ключом, или выберите значение ниже."
+    "message": "Нет подходящих значений. Сохраните поле через контекстное меню или выберите запись на боковой панели."
   },
   "allEntries": {
     "message": "Все записи"
@@ -187,5 +187,567 @@
         "example": "Work"
       }
     }
+  },
+  "undo": {
+    "message": "Отменить заполнение"
+  },
+  "undoResult": {
+    "message": "Восстановлено: $A$. Пропущено изменённых или недоступных полей: $B$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "settings": {
+    "message": "Настройки"
+  },
+  "language": {
+    "message": "Язык"
+  },
+  "automatic": {
+    "message": "Авто (язык браузера)"
+  },
+  "languageHint": {
+    "message": "Язык панели, меню и подсказки значка изменится сразу. Название расширения и описание горячей клавиши в Chrome зависят от языка браузера."
+  },
+  "back": {
+    "message": "К списку записей"
+  },
+  "pin": {
+    "message": "Закрепить запись"
+  },
+  "unpin": {
+    "message": "Открепить запись"
+  },
+  "expand": {
+    "message": "Развернуть"
+  },
+  "collapse": {
+    "message": "Свернуть"
+  },
+  "fillForm": {
+    "message": "Заполнить форму…"
+  },
+  "formPreview": {
+    "message": "Проверка заполнения формы"
+  },
+  "previewHint": {
+    "message": "Проверьте каждое поле. Если совпадений несколько, выберите значение. Изменённые поля будут пропущены. Пароли не заполняются. Форма не отправляется."
+  },
+  "skipField": {
+    "message": "Пропустить поле"
+  },
+  "ambiguousMatch": {
+    "message": "Несколько совпадений — выберите значение."
+  },
+  "currentValue": {
+    "message": "Текущее значение: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "noFields": {
+    "message": "Видимых полей для заполнения не найдено."
+  },
+  "applyForm": {
+    "message": "Заполнить выбранные поля"
+  },
+  "formResult": {
+    "message": "Заполнено: $A$. Пропущено: $B$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "savedAssociation": {
+    "message": "Сохранённая связь"
+  },
+  "matchedHint": {
+    "message": "Совпадает с подписью поля: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "editAssociation": {
+    "message": "Изменить связь поля"
+  },
+  "associationHint": {
+    "message": "Выберите или введите ключ. Оставьте поле пустым, чтобы удалить связь. Значения записей не изменятся."
+  },
+  "showAllSites": {
+    "message": "Показать записи для всех сайтов"
+  },
+  "sites": {
+    "message": "Сайты (необязательно)"
+  },
+  "sitesHint": {
+    "message": "Один адрес сайта на строку, например https://example.com. Оставьте пустым, чтобы использовать запись везде."
+  },
+  "currentSite": {
+    "message": "Текущий сайт"
+  },
+  "importData": {
+    "message": "Импорт"
+  },
+  "exportData": {
+    "message": "Экспорт"
+  },
+  "chooseFile": {
+    "message": "Выберите файл JSON"
+  },
+  "pasteJson": {
+    "message": "Или вставьте JSON"
+  },
+  "previewImport": {
+    "message": "Предпросмотр импорта"
+  },
+  "applyImport": {
+    "message": "Импортировать записи"
+  },
+  "importSummary": {
+    "message": "Новых записей: $A$. Дубликатов: $B$. Связей полей: $C$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "duplicateEntry": {
+    "message": "Существующая запись (тот же ID)"
+  },
+  "duplicates": {
+    "message": "Обработка дубликатов"
+  },
+  "mergeDuplicates": {
+    "message": "Объединить ключи; импортируемые значения приоритетны"
+  },
+  "replaceDuplicates": {
+    "message": "Заменить дубликаты целиком"
+  },
+  "skipDuplicates": {
+    "message": "Оставить существующие записи"
+  },
+  "importPolicy": {
+    "message": "Дубликаты определяются по ID. Другие записи сохранятся. При объединении и замене связи полей берутся из импорта; при сохранении существующих записей — из текущих данных."
+  },
+  "backupHint": {
+    "message": "Резервная копия содержит значения и связи полей в обычном JSON. Максимум: 2 МБ, 500 записей, 200 ключей на запись."
+  },
+  "invalidImport": {
+    "message": "Некорректные данные. Используйте копию Quickfill версии 1, корректные адреса сайтов и соблюдайте ограничения размера."
+  },
+  "imported": {
+    "message": "Записи импортированы."
+  },
+  "exported": {
+    "message": "Началось скачивание резервной копии."
+  },
+  "palette": {
+    "message": "Палитра команд"
+  },
+  "paletteShortcut": {
+    "message": "Открыть палитру команд Quickfill"
+  },
+  "commandSearch": {
+    "message": "Поиск записей и действий…"
+  },
+  "inlineFill": {
+    "message": "Подсказки Quickfill"
+  },
+  "fillWith": {
+    "message": "Заполнить из записи «$A$»",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "duplicate": {
+    "message": "Дублировать"
+  },
+  "copyName": {
+    "message": "$A$ (копия)",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "entryTemplate": {
+    "message": "Начать с шаблона"
+  },
+  "blankTemplate": {
+    "message": "Пустая запись"
+  },
+  "template_person": {
+    "message": "Человек"
+  },
+  "template_company": {
+    "message": "Компания"
+  },
+  "template_address": {
+    "message": "Адрес"
+  },
+  "template_testAccount": {
+    "message": "Тестовый аккаунт"
+  },
+  "tags": {
+    "message": "Теги"
+  },
+  "tag": {
+    "message": "Тег"
+  },
+  "tagsHint": {
+    "message": "Работа, QA, проект"
+  },
+  "collection": {
+    "message": "Коллекция"
+  },
+  "allTags": {
+    "message": "Все теги"
+  },
+  "allCollections": {
+    "message": "Все коллекции"
+  },
+  "transformation": {
+    "message": "Преобразование для поля"
+  },
+  "formatPattern": {
+    "message": "Шаблон формата"
+  },
+  "transform_none": {
+    "message": "Как сохранено"
+  },
+  "transform_trim": {
+    "message": "Убрать пробелы по краям"
+  },
+  "transform_upper": {
+    "message": "ВЕРХНИЙ РЕГИСТР"
+  },
+  "transform_lower": {
+    "message": "нижний регистр"
+  },
+  "transform_digits": {
+    "message": "Только цифры"
+  },
+  "transform_format": {
+    "message": "По шаблону"
+  },
+  "valueOptions": {
+    "message": "Настройки значения"
+  },
+  "variablesHint": {
+    "message": "Переменные: {{date}} (UTC), {{uuid}}, {{timestamp}} (миллисекунды), {{counter}}. Значение будет показано перед заполнением. В формате {value} вставляет значение, # — следующую цифру."
+  },
+  "resolving": {
+    "message": "Подготовка предпросмотра…"
+  },
+  "reviewGenerated": {
+    "message": "Проверьте созданное значение"
+  },
+  "applyValue": {
+    "message": "Заполнить этим значением"
+  },
+  "unknownVariable": {
+    "message": "Неизвестная переменная. Используйте date, uuid, timestamp или counter."
+  },
+  "saveMapping": {
+    "message": "Сохранить соответствия"
+  },
+  "mappingSaved": {
+    "message": "Соответствия сохранены для этой записи и страницы."
+  },
+  "savedMapping": {
+    "message": "Сохранённое соответствие"
+  },
+  "manualMapping": {
+    "message": "Ключ выбран вручную"
+  },
+  "brokenMappings": {
+    "message": "Изменённых или отсутствующих полей: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "repairMappings": {
+    "message": "Проверьте поля ниже. Сохранение заменит прежние правила, включая отсутствующие поля."
+  },
+  "emptyOnly": {
+    "message": "Заполнять только пустые поля"
+  },
+  "nonemptySkipped": {
+    "message": "Пропущено: поле уже заполнено. Снимите «Заполнять только пустые поля», чтобы заменить значение."
+  },
+  "fieldRemoved": {
+    "message": "Поле удалено со страницы."
+  },
+  "fieldReadOnly": {
+    "message": "Поле отключено или доступно только для чтения."
+  },
+  "inputCancelled": {
+    "message": "Страница отменила ввод."
+  },
+  "fieldOverridden": {
+    "message": "Страница заменила введённое значение."
+  },
+  "fieldChanged": {
+    "message": "Поле изменилось после предпросмотра."
+  },
+  "fieldExcluded": {
+    "message": "Поле исключено в настройках сайта."
+  },
+  "websiteSettings": {
+    "message": "Этот сайт"
+  },
+  "preferredEntry": {
+    "message": "Предпочитаемая запись"
+  },
+  "noPreference": {
+    "message": "Без предпочтения"
+  },
+  "sidebarWidth": {
+    "message": "Ширина панели (320–640 px)"
+  },
+  "suggestionBehavior": {
+    "message": "Подсказки у поля"
+  },
+  "suggestions_off": {
+    "message": "Выключены"
+  },
+  "suggestions_button": {
+    "message": "Показывать кнопку"
+  },
+  "suggestions_auto": {
+    "message": "Открывать при выборе поля"
+  },
+  "excludedFields": {
+    "message": "Исключённые поля"
+  },
+  "savePreferences": {
+    "message": "Сохранить настройки сайта"
+  },
+  "preferencesSaved": {
+    "message": "Настройки сайта сохранены."
+  },
+  "walkthrough": {
+    "message": "Быстрый старт"
+  },
+  "welcomeText": {
+    "message": "Создайте запись и попробуйте заполнить учебное поле."
+  },
+  "createExample": {
+    "message": "Создать пример записи"
+  },
+  "exampleProfile": {
+    "message": "Пример записи"
+  },
+  "skipWalkthrough": {
+    "message": "Скрыть"
+  },
+  "practiceTitle": {
+    "message": "Попробуйте заполнение"
+  },
+  "practiceText": {
+    "message": "Заполните учебное поле. Можно отменить заполнение, а затем использовать запись на настоящих страницах."
+  },
+  "practiceEmail": {
+    "message": "Учебное поле почты"
+  },
+  "fillSample": {
+    "message": "Заполнить учебное поле"
+  },
+  "finishWalkthrough": {
+    "message": "Готово"
+  },
+  "autofillCoexistence": {
+    "message": "Quickfill открывается по нажатию кнопки. Пока вы вводите текст, доступны подсказки браузера. Прежний автоматический режим теперь использует кнопку."
+  },
+  "moreActions": {
+    "message": "Другие действия"
+  },
+  "details": {
+    "message": "Подробности"
+  },
+  "dismiss": {
+    "message": "Скрыть"
+  },
+  "close": {
+    "message": "Закрыть"
+  },
+  "destination": {
+    "message": "Выбрано поле: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "filledField": {
+    "message": "Поле «$A$» заполнено.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "valueCount": {
+    "message": "Значений: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "showFullValue": {
+    "message": "Показать целиком"
+  },
+  "entryScope": {
+    "message": "Область записей"
+  },
+  "filters": {
+    "message": "Фильтры"
+  },
+  "resumeDraft": {
+    "message": "Продолжить черновик"
+  },
+  "discardDraft": {
+    "message": "Удалить черновик"
+  },
+  "pinnedEntries": {
+    "message": "Закреплённые"
+  },
+  "organization": {
+    "message": "Сайты, теги и коллекция"
+  },
+  "replaceValue": {
+    "message": "Заменить сохранённое значение"
+  },
+  "beforeValue": {
+    "message": "Сейчас сохранено"
+  },
+  "afterValue": {
+    "message": "Новое значение"
+  },
+  "reviewReplacement": {
+    "message": "Проверьте замену и снова нажмите «Сохранить значение»."
+  },
+  "appearance": {
+    "message": "Внешний вид на этом сайте"
+  },
+  "general": {
+    "message": "Общие"
+  },
+  "dataSettings": {
+    "message": "Данные"
+  },
+  "needsAttention": {
+    "message": "Только требующие внимания"
+  },
+  "previewSummary": {
+    "message": "Готово: $A$ · Требуют внимания: $B$ · Пропущено: $C$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "fillFields": {
+    "message": "Заполнить поля: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "importChanges": {
+    "message": "Добавлено: $A$ · Обновлено: $B$ · Без изменений: $C$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "suggestionKeys": {
+    "message": "↑ ↓ Выбор · Enter Заполнить · Esc Закрыть"
+  },
+  "valuesGroup": {
+    "message": "Значения"
+  },
+  "actionsGroup": {
+    "message": "Действия"
+  },
+  "clearFilters": {
+    "message": "Сбросить поиск и фильтры"
+  },
+  "unavailableField": {
+    "message": "Недоступное поле"
+  },
+  "fillOneField": {
+    "message": "Заполнить 1 поле"
+  },
+  "matchingEntries": {
+    "message": "Показано записей: $A$ из $B$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "resultCount": {
+    "message": "Результатов: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "showingResults": {
+    "message": "Показано: $A$ из $B$ · Уточните поиск",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "paletteKeys": {
+    "message": "↑ ↓ Выбор · Enter Выполнить · Esc Закрыть"
   }
 }

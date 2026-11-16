@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Quickfill framework fixtures</title>
+<style>body{font:16px system-ui;max-width:760px;padding:25px}input,textarea,select,[contenteditable]{display:block;margin:8px 0 16px;padding:8px;border:1px solid #abc;min-height:24px}section{margin:20px 0;padding:15px;background:#f3f6fb}</style>
+<script src="vendor/react.development.js"></script><script src="vendor/react-dom.development.js"></script><script src="vendor/vue.global.prod.js"></script>
+<h1>Framework-controlled fields</h1><section id="react"></section><section id="vue"></section>
+<script>
+const h=React.createElement;
+function ReactFixture(){const [text,setText]=React.useState('before');const [country,setCountry]=React.useState('US');const [rich,setRich]=React.useState('before');return h('div',null,
+ h('h2',null,'React controlled form'),h('input',{id:'react-email',name:'email',value:text,onChange:e=>setText(e.target.value)}),
+ h('select',{id:'react-country',name:'country',value:country,onChange:e=>setCountry(e.target.value)},h('option',{value:'US'},'United States'),h('option',{value:'RU'},'Russia')),
+ h('div',{id:'react-rich',contentEditable:true,suppressContentEditableWarning:true,'aria-label':'notes',onInput:e=>setRich(e.currentTarget.textContent)},rich),
+ h('output',{id:'react-state'},JSON.stringify({text,country,rich})));}
+ReactDOM.createRoot(document.querySelector('#react')).render(h(ReactFixture));
+Vue.createApp({data:()=>({text:'before',country:'US',rich:'before'}),template:`<h2>Vue controlled form</h2><input id="vue-email" name="email" v-model="text"><select id="vue-country" name="country" v-model="country"><option value="US">United States</option><option value="RU">Russia</option></select><div id="vue-rich" contenteditable="true" aria-label="notes" @input="rich=$event.target.textContent">before</div><output id="vue-state">{{JSON.stringify({text,country,rich})}}</output>`}).mount('#vue');
+</script></html>

@@ -39,7 +39,7 @@
     "message": "Search entries"
   },
   "footerHint": {
-    "message": "Drag a value to a field · Ctrl+B to toggle"
+    "message": "Drag to fill · ↑/↓ then Enter · Esc to close"
   },
   "selectField": {
     "message": "Select an editable field on the page first."
@@ -63,13 +63,13 @@
     "message": "No values yet. Choose Edit to add one."
   },
   "newEntryButton": {
-    "message": "+ New entry"
+    "message": "New entry"
   },
   "suggestedValues": {
     "message": "Suggested for this field"
   },
   "noMatchingKeys": {
-    "message": "No matching keys yet. Save this field to associate it with a key, or pick a value below."
+    "message": "No matching values. Save this field from its right-click menu, or browse entries in the sidebar."
   },
   "allEntries": {
     "message": "All entries"
@@ -187,5 +187,567 @@
         "example": "Work"
       }
     }
+  },
+  "undo": {
+    "message": "Undo last fill"
+  },
+  "undoResult": {
+    "message": "Restored: $A$. Skipped changed or unavailable fields: $B$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "language": {
+    "message": "Language"
+  },
+  "automatic": {
+    "message": "Auto (browser language)"
+  },
+  "languageHint": {
+    "message": "Changes the sidebar, menus, and toolbar tooltip immediately. Chrome’s extension listing and shortcut description follow the browser language."
+  },
+  "back": {
+    "message": "Back to entries"
+  },
+  "pin": {
+    "message": "Pin entry"
+  },
+  "unpin": {
+    "message": "Unpin entry"
+  },
+  "expand": {
+    "message": "Expand"
+  },
+  "collapse": {
+    "message": "Collapse"
+  },
+  "fillForm": {
+    "message": "Fill form…"
+  },
+  "formPreview": {
+    "message": "Review form filling"
+  },
+  "previewHint": {
+    "message": "Review each field before applying. Multiple matches require a choice. Changed fields are skipped. Password fields are excluded. Nothing is submitted."
+  },
+  "skipField": {
+    "message": "Skip this field"
+  },
+  "ambiguousMatch": {
+    "message": "Multiple matches — choose a value."
+  },
+  "currentValue": {
+    "message": "Current value: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "noFields": {
+    "message": "No visible editable fields found."
+  },
+  "applyForm": {
+    "message": "Apply selected values"
+  },
+  "formResult": {
+    "message": "Filled: $A$. Skipped: $B$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "savedAssociation": {
+    "message": "Saved association"
+  },
+  "matchedHint": {
+    "message": "Matches field hint: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "editAssociation": {
+    "message": "Change field association"
+  },
+  "associationHint": {
+    "message": "Choose or enter a key. Leave blank to forget this association. Saved entry values will not change."
+  },
+  "showAllSites": {
+    "message": "Show entries for all websites"
+  },
+  "sites": {
+    "message": "Websites (optional)"
+  },
+  "sitesHint": {
+    "message": "One origin per line, e.g. https://example.com. Leave blank to use this entry everywhere."
+  },
+  "currentSite": {
+    "message": "Use current website"
+  },
+  "importData": {
+    "message": "Import"
+  },
+  "exportData": {
+    "message": "Export"
+  },
+  "chooseFile": {
+    "message": "Choose JSON file"
+  },
+  "pasteJson": {
+    "message": "Or paste JSON"
+  },
+  "previewImport": {
+    "message": "Preview import"
+  },
+  "applyImport": {
+    "message": "Import entries"
+  },
+  "importSummary": {
+    "message": "New entries: $A$. Duplicates: $B$. Field associations: $C$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "duplicateEntry": {
+    "message": "Existing entry (same ID)"
+  },
+  "duplicates": {
+    "message": "Duplicate handling"
+  },
+  "mergeDuplicates": {
+    "message": "Merge keys; imported values win"
+  },
+  "replaceDuplicates": {
+    "message": "Replace duplicate entries"
+  },
+  "skipDuplicates": {
+    "message": "Keep existing duplicates"
+  },
+  "importPolicy": {
+    "message": "Duplicates are matched by ID. Unrelated entries stay intact. Merge/replace uses imported field associations on conflict; keep-existing preserves existing associations."
+  },
+  "backupHint": {
+    "message": "Backups contain saved values and field associations as plain JSON. Maximum: 2 MB, 500 entries, 200 keys per entry."
+  },
+  "invalidImport": {
+    "message": "Invalid data. Use a version 1 Quickfill backup, valid site origins, and stay within the size limits."
+  },
+  "imported": {
+    "message": "Entries imported."
+  },
+  "exported": {
+    "message": "Backup download started."
+  },
+  "palette": {
+    "message": "Command palette"
+  },
+  "paletteShortcut": {
+    "message": "Open Quickfill command palette"
+  },
+  "commandSearch": {
+    "message": "Search entries and actions…"
+  },
+  "inlineFill": {
+    "message": "Quickfill suggestions"
+  },
+  "fillWith": {
+    "message": "Fill with $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "duplicate": {
+    "message": "Duplicate"
+  },
+  "copyName": {
+    "message": "$A$ (copy)",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "entryTemplate": {
+    "message": "Start from a template"
+  },
+  "blankTemplate": {
+    "message": "Blank entry"
+  },
+  "template_person": {
+    "message": "Person"
+  },
+  "template_company": {
+    "message": "Company"
+  },
+  "template_address": {
+    "message": "Address"
+  },
+  "template_testAccount": {
+    "message": "Test account"
+  },
+  "tags": {
+    "message": "Tags"
+  },
+  "tag": {
+    "message": "Tag"
+  },
+  "tagsHint": {
+    "message": "Work, QA, project name"
+  },
+  "collection": {
+    "message": "Collection"
+  },
+  "allTags": {
+    "message": "All tags"
+  },
+  "allCollections": {
+    "message": "All collections"
+  },
+  "transformation": {
+    "message": "Transform for this field"
+  },
+  "formatPattern": {
+    "message": "Format pattern"
+  },
+  "transform_none": {
+    "message": "As saved"
+  },
+  "transform_trim": {
+    "message": "Trim whitespace"
+  },
+  "transform_upper": {
+    "message": "UPPERCASE"
+  },
+  "transform_lower": {
+    "message": "lowercase"
+  },
+  "transform_digits": {
+    "message": "Digits only"
+  },
+  "transform_format": {
+    "message": "Format with a pattern"
+  },
+  "valueOptions": {
+    "message": "Value options"
+  },
+  "variablesHint": {
+    "message": "Variables: {{date}} (UTC), {{uuid}}, {{timestamp}} (milliseconds), {{counter}}. Generated values are reviewed before filling. Format: {value} inserts the value; # inserts the next digit."
+  },
+  "resolving": {
+    "message": "Preparing preview…"
+  },
+  "reviewGenerated": {
+    "message": "Review generated value"
+  },
+  "applyValue": {
+    "message": "Fill with this value"
+  },
+  "unknownVariable": {
+    "message": "Unknown variable. Use date, uuid, timestamp, or counter."
+  },
+  "saveMapping": {
+    "message": "Save form mapping"
+  },
+  "mappingSaved": {
+    "message": "Form mapping saved for this entry and page."
+  },
+  "savedMapping": {
+    "message": "Saved form mapping"
+  },
+  "manualMapping": {
+    "message": "Manually selected key"
+  },
+  "brokenMappings": {
+    "message": "Changed or missing mappings: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "repairMappings": {
+    "message": "Review the current fields below. Saving the mapping replaces old rules, including missing ones."
+  },
+  "emptyOnly": {
+    "message": "Fill empty fields only"
+  },
+  "nonemptySkipped": {
+    "message": "Skipped: this field already has a value. Uncheck “Fill empty fields only” to overwrite it."
+  },
+  "fieldRemoved": {
+    "message": "The field was removed from the page."
+  },
+  "fieldReadOnly": {
+    "message": "This field is disabled or read-only."
+  },
+  "inputCancelled": {
+    "message": "The page cancelled the input event."
+  },
+  "fieldOverridden": {
+    "message": "The page replaced the filled value."
+  },
+  "fieldChanged": {
+    "message": "The field changed after the preview."
+  },
+  "fieldExcluded": {
+    "message": "This field is excluded in website settings."
+  },
+  "websiteSettings": {
+    "message": "This website"
+  },
+  "preferredEntry": {
+    "message": "Preferred entry"
+  },
+  "noPreference": {
+    "message": "No preference"
+  },
+  "sidebarWidth": {
+    "message": "Sidebar width (320–640 px)"
+  },
+  "suggestionBehavior": {
+    "message": "Inline suggestions"
+  },
+  "suggestions_off": {
+    "message": "Off"
+  },
+  "suggestions_button": {
+    "message": "Show a button"
+  },
+  "suggestions_auto": {
+    "message": "Open suggestions on focus"
+  },
+  "excludedFields": {
+    "message": "Excluded fields"
+  },
+  "savePreferences": {
+    "message": "Save website preferences"
+  },
+  "preferencesSaved": {
+    "message": "Website preferences saved."
+  },
+  "walkthrough": {
+    "message": "Quick start"
+  },
+  "welcomeText": {
+    "message": "Create a reusable entry and try filling a sample field in a short walkthrough."
+  },
+  "createExample": {
+    "message": "Create example profile"
+  },
+  "exampleProfile": {
+    "message": "Example profile"
+  },
+  "skipWalkthrough": {
+    "message": "Dismiss"
+  },
+  "practiceTitle": {
+    "message": "Try your first fill"
+  },
+  "practiceText": {
+    "message": "Fill the sample below. You can undo it, then use the same entry on real pages."
+  },
+  "practiceEmail": {
+    "message": "Sample email field"
+  },
+  "fillSample": {
+    "message": "Fill sample field"
+  },
+  "finishWalkthrough": {
+    "message": "Finish"
+  },
+  "autofillCoexistence": {
+    "message": "Quickfill opens when you press its button, keeping browser autofill available while you type. Existing automatic settings now use the button."
+  },
+  "moreActions": {
+    "message": "More actions"
+  },
+  "details": {
+    "message": "Details"
+  },
+  "dismiss": {
+    "message": "Dismiss"
+  },
+  "close": {
+    "message": "Close"
+  },
+  "destination": {
+    "message": "Selected field: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "filledField": {
+    "message": "$A$ filled.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "valueCount": {
+    "message": "Values: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "showFullValue": {
+    "message": "Show full value"
+  },
+  "entryScope": {
+    "message": "Entry scope"
+  },
+  "filters": {
+    "message": "Filters"
+  },
+  "resumeDraft": {
+    "message": "Resume draft"
+  },
+  "discardDraft": {
+    "message": "Discard draft"
+  },
+  "pinnedEntries": {
+    "message": "Pinned"
+  },
+  "organization": {
+    "message": "Websites, tags and collection"
+  },
+  "replaceValue": {
+    "message": "Replace saved value"
+  },
+  "beforeValue": {
+    "message": "Currently saved"
+  },
+  "afterValue": {
+    "message": "New value"
+  },
+  "reviewReplacement": {
+    "message": "Review the replacement, then press Save value again."
+  },
+  "appearance": {
+    "message": "Appearance on this website"
+  },
+  "general": {
+    "message": "General"
+  },
+  "dataSettings": {
+    "message": "Data"
+  },
+  "needsAttention": {
+    "message": "Needs attention only"
+  },
+  "previewSummary": {
+    "message": "Ready: $A$ · Review: $B$ · Skipped: $C$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "fillFields": {
+    "message": "Fill $A$ fields",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "importChanges": {
+    "message": "$A$ added · $B$ updated · $C$ kept unchanged",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      },
+      "c": {
+        "content": "$3"
+      }
+    }
+  },
+  "suggestionKeys": {
+    "message": "↑ ↓ Choose · Enter Fill · Esc Close"
+  },
+  "valuesGroup": {
+    "message": "Values"
+  },
+  "actionsGroup": {
+    "message": "Actions"
+  },
+  "clearFilters": {
+    "message": "Clear search and filters"
+  },
+  "unavailableField": {
+    "message": "Unavailable field"
+  },
+  "fillOneField": {
+    "message": "Fill 1 field"
+  },
+  "matchingEntries": {
+    "message": "Showing $A$ of $B$ entries",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "resultCount": {
+    "message": "Results: $A$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "showingResults": {
+    "message": "Showing $A$ of $B$ results · Type to narrow the list",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "paletteKeys": {
+    "message": "↑ ↓ Choose · Enter Run · Esc Close"
   }
 }
