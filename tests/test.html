@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quickfill • Browser playground</title>
+<style>
+*{box-sizing:border-box}body{font:15px/1.6 system-ui,sans-serif;margin:0;background:#f3f6fb;color:#20304a}main{max-width:1000px;margin:48px auto;padding:0 28px 70px}header{max-width:620px;margin-bottom:30px}small{letter-spacing:2px;color:#5073c3;font-weight:700}h1{font-size:38px;letter-spacing:-1.5px;line-height:1.2;margin:12px 0}h2{margin-top:0;font-size:19px}p{color:#66758c}.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}section{background:white;border:1px solid #dce4f0;border-radius:16px;padding:25px;margin-bottom:22px}label{display:block;font-weight:600;font-size:13px;margin:15px 0 5px}input,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid #cad5e5;border-radius:8px}textarea{min-height:95px}input:focus,textarea:focus{outline:3px solid #b8ceff;border-color:#6083e1}button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:10px 16px;background:#315de4;color:white;margin-top:16px}kbd,code{background:#edf2fc;padding:2px 6px;border-radius:4px}ol{padding-left:20px}li{margin:10px 0}#events{white-space:pre-wrap;font:12px/1.7 monospace;background:#15223b;color:#b8d5ff;border-radius:8px;padding:15px;min-height:110px;max-height:220px;overflow:auto}iframe{border:1px solid #dce4f0;border-radius:8px;width:100%;height:120px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+<main>
+<header><small>QUICKFILL / BROWSER PLAYGROUND</small><h1>Less typing.<br>More getting things done.</h1><p>A real form for testing your saved entries. Load the extension, press <kbd>Ctrl+B</kbd>, and give your field kit a try.</p></header>
+<div class="grid"><div>
+<section><h2>01 · Contact details</h2><form id="contact" onsubmit="event.preventDefault()">
+<label for="full-name">Full name</label><input id="full-name" name="full_name" autocomplete="name" placeholder="Alex Morgan">
+<label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" placeholder="alex@example.com">
+<label for="phone">Phone number</label><input id="phone" type="tel" name="phone" autocomplete="tel" placeholder="+1 555 010 2040">
+<label for="company">Company</label><input id="company" name="company" autocomplete="organization">
+<label for="notes">Notes</label><textarea id="notes" name="notes" placeholder="Try a multiline saved value"></textarea>
+<button type="reset">Reset fields</button></form></section>
+<section><h2>02 · Types & restrictions</h2>
+<label for="website">Website</label><input id="website" type="url" name="website">
+<label for="quantity">Quantity</label><input id="quantity" type="number" name="quantity">
+<label for="birthday">Birthday</label><input id="birthday" type="date" name="birthday">
+<label for="custom">Unusual field: associate your own key</label><input id="custom" name="customer_reference_42" value="ACME-42">
+<label for="locked">Read-only field</label><input id="locked" readonly value="Must stay unchanged">
+<label for="disabled">Disabled field</label><input id="disabled" disabled value="Cannot fill this">
+</section></div><div>
+<section><h2>Try the full workflow</h2><ol>
+<li>Open the sidebar with <kbd>Ctrl+B</kbd>. Create “Work profile”, choose a color, and add <code>email</code>, <code>name</code>, and <code>company</code>.</li>
+<li>Right-click Email → <strong>Quickfill: suggest saved values</strong>. Select the matching email.</li>
+<li>Drag a value from the sidebar into a field. Watch the event log below.</li>
+<li>Right-click the unusual field → <strong>Quickfill: save this field value…</strong>. Save as <code>customer code</code>. Clear the field and request suggestions again.</li>
+<li>Edit a value and color; search for the entry. Reload this page and confirm the saved data remains.</li>
+<li>Try two tabs, deleting an entry, filling a read-only field, and filling the frame below.</li>
+</ol></section>
+<section><h2>03 · Page events</h2><p>Successful fills emit both <code>input</code> and <code>change</code>, as application forms expect.</p><div id="events" role="log">Waiting for field input…</div><button id="clear-log">Clear log</button></section>
+<section><h2>04 · Frame & dynamic input</h2><iframe title="Frame input" src="frame.html"></iframe><button id="add-field">Add dynamic email input</button><div id="dynamic"></div></section>
+</div></div>
+</main>
+<script>
+const log = document.querySelector('#events');
+for (const type of ['input','change']) document.addEventListener(type,event=>{
+ if (!event.target.matches('input,textarea')) return;
+ if (log.textContent === 'Waiting for field input…') log.textContent = '';
+ log.textContent = `${event.type.padEnd(7)} ${event.target.id}: ${event.target.value}\n` + log.textContent;
+});
+document.querySelector('#clear-log').onclick=()=>log.textContent='';
+document.querySelector('#add-field').onclick=()=>{const input=document.createElement('input');input.type='email';input.name='email';input.placeholder='Dynamically added email';input.setAttribute('aria-label','Dynamic email');document.querySelector('#dynamic').append(input)};
+</script>
+</html>

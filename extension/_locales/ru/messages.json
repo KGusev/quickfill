@@ -1,0 +1,191 @@
+{
+  "extensionName": {
+    "message": "Quickfill — сохранённые данные"
+  },
+  "extensionDescription": {
+    "message": "Сохраняйте данные и заполняйте поля с помощью боковой панели с поиском."
+  },
+  "toggleSidebar": {
+    "message": "Открыть или скрыть панель Quickfill"
+  },
+  "toggleCommand": {
+    "message": "Открыть или скрыть Quickfill"
+  },
+  "menuFill": {
+    "message": "Quickfill: предложить сохранённые значения"
+  },
+  "menuSave": {
+    "message": "Quickfill: сохранить значение поля…"
+  },
+  "registryLabel": {
+    "message": "Сохранённые данные Quickfill"
+  },
+  "badge": {
+    "message": "QUICKFILL / ДАННЫЕ ПОД РУКОЙ"
+  },
+  "savedEntries": {
+    "message": "Сохранённые записи"
+  },
+  "closeSidebar": {
+    "message": "Закрыть панель"
+  },
+  "tagline": {
+    "message": "Сохраните один раз. Заполняйте где угодно."
+  },
+  "searchPlaceholder": {
+    "message": "Поиск по записям, ключам, значениям…"
+  },
+  "searchLabel": {
+    "message": "Поиск записей"
+  },
+  "footerHint": {
+    "message": "Перетащите значение в поле · Ctrl+B — открыть/скрыть"
+  },
+  "selectField": {
+    "message": "Сначала выберите поле на странице, доступное для ввода."
+  },
+  "incompatibleValue": {
+    "message": "Это значение не подходит для выбранного поля."
+  },
+  "rejectedValue": {
+    "message": "Поле не приняло это значение."
+  },
+  "fieldFilled": {
+    "message": "Поле заполнено."
+  },
+  "emptyValue": {
+    "message": "(пусто)"
+  },
+  "edit": {
+    "message": "Изменить"
+  },
+  "noValues": {
+    "message": "Значений пока нет. Нажмите «Изменить», чтобы добавить их."
+  },
+  "newEntryButton": {
+    "message": "+ Новая запись"
+  },
+  "suggestedValues": {
+    "message": "Подходящие значения для этого поля"
+  },
+  "noMatchingKeys": {
+    "message": "Подходящих ключей пока нет. Сохраните поле, чтобы связать его с ключом, или выберите значение ниже."
+  },
+  "allEntries": {
+    "message": "Все записи"
+  },
+  "noMatchingEntries": {
+    "message": "Записи не найдены"
+  },
+  "emptyTitle": {
+    "message": "Данные для ваших форм"
+  },
+  "tryAnotherSearch": {
+    "message": "Попробуйте другой запрос."
+  },
+  "emptyDescription": {
+    "message": "Создайте запись для человека, компании или тестового аккаунта. Добавьте ключи и значения, которые часто используете."
+  },
+  "editEntry": {
+    "message": "Изменить запись"
+  },
+  "newEntry": {
+    "message": "Новая запись"
+  },
+  "entryName": {
+    "message": "Название записи"
+  },
+  "entryNamePlaceholder": {
+    "message": "Например, рабочий профиль"
+  },
+  "entryColor": {
+    "message": "Цвет записи"
+  },
+  "key": {
+    "message": "Ключ"
+  },
+  "value": {
+    "message": "Значение"
+  },
+  "removeValue": {
+    "message": "Удалить значение"
+  },
+  "addValue": {
+    "message": "+ Добавить значение"
+  },
+  "saveEntry": {
+    "message": "Сохранить запись"
+  },
+  "cancel": {
+    "message": "Отмена"
+  },
+  "deleteEntry": {
+    "message": "Удалить запись"
+  },
+  "entryDeleted": {
+    "message": "Запись удалена."
+  },
+  "uniqueKeyRequired": {
+    "message": "У каждого значения должен быть свой непустой ключ."
+  },
+  "entryNameRequired": {
+    "message": "Введите название записи."
+  },
+  "entrySaved": {
+    "message": "Запись сохранена на этом устройстве."
+  },
+  "chooseInput": {
+    "message": "Сначала выберите поле, доступное для ввода."
+  },
+  "keepField": {
+    "message": "Сохранить значение поля"
+  },
+  "createEntryFirst": {
+    "message": "Сначала создайте запись, затем снова нажмите на поле правой кнопкой мыши."
+  },
+  "saveToEntry": {
+    "message": "Сохранить в запись"
+  },
+  "associatedKey": {
+    "message": "Связанный ключ"
+  },
+  "saveFieldHint": {
+    "message": "Значение этого ключа в выбранной записи будет заменено. Связь поля с ключом сохранится для этой страницы."
+  },
+  "saveValue": {
+    "message": "Сохранить значение"
+  },
+  "fieldSaved": {
+    "message": "Значение и связь с полем сохранены."
+  },
+  "invalidEntry": {
+    "message": "Некорректная запись"
+  },
+  "entryMissing": {
+    "message": "Запись больше не существует"
+  },
+  "keyRequired": {
+    "message": "Укажите ключ"
+  },
+  "unknownAction": {
+    "message": "Неизвестное действие"
+  },
+  "entryCount": {
+    "message": "Записей: $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmDelete": {
+    "message": "Удалить запись «$NAME$» и её значения?",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Work"
+      }
+    }
+  }
+}

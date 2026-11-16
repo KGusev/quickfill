@@ -1,0 +1,191 @@
+{
+  "extensionName": {
+    "message": "Quickfill Registry"
+  },
+  "extensionDescription": {
+    "message": "Save reusable entries and fill fields from a searchable sidebar."
+  },
+  "toggleSidebar": {
+    "message": "Toggle Quickfill sidebar"
+  },
+  "toggleCommand": {
+    "message": "Show or hide Quickfill"
+  },
+  "menuFill": {
+    "message": "Quickfill: suggest saved values"
+  },
+  "menuSave": {
+    "message": "Quickfill: save this field value…"
+  },
+  "registryLabel": {
+    "message": "Quickfill registry"
+  },
+  "badge": {
+    "message": "QUICKFILL / YOUR FIELD KIT"
+  },
+  "savedEntries": {
+    "message": "Saved entries"
+  },
+  "closeSidebar": {
+    "message": "Close sidebar"
+  },
+  "tagline": {
+    "message": "Keep it once. Fill it anywhere."
+  },
+  "searchPlaceholder": {
+    "message": "Search entries, keys, values…"
+  },
+  "searchLabel": {
+    "message": "Search entries"
+  },
+  "footerHint": {
+    "message": "Drag a value to a field · Ctrl+B to toggle"
+  },
+  "selectField": {
+    "message": "Select an editable field on the page first."
+  },
+  "incompatibleValue": {
+    "message": "This value is not compatible with the selected field."
+  },
+  "rejectedValue": {
+    "message": "The field rejected this value."
+  },
+  "fieldFilled": {
+    "message": "Field filled."
+  },
+  "emptyValue": {
+    "message": "(empty)"
+  },
+  "edit": {
+    "message": "Edit"
+  },
+  "noValues": {
+    "message": "No values yet. Choose Edit to add one."
+  },
+  "newEntryButton": {
+    "message": "+ New entry"
+  },
+  "suggestedValues": {
+    "message": "Suggested for this field"
+  },
+  "noMatchingKeys": {
+    "message": "No matching keys yet. Save this field to associate it with a key, or pick a value below."
+  },
+  "allEntries": {
+    "message": "All entries"
+  },
+  "noMatchingEntries": {
+    "message": "No matching entries"
+  },
+  "emptyTitle": {
+    "message": "Your next form starts here"
+  },
+  "tryAnotherSearch": {
+    "message": "Try another search."
+  },
+  "emptyDescription": {
+    "message": "Create an entry for a person, company, or test account. Add the keys and values you use most."
+  },
+  "editEntry": {
+    "message": "Edit entry"
+  },
+  "newEntry": {
+    "message": "New entry"
+  },
+  "entryName": {
+    "message": "Entry name"
+  },
+  "entryNamePlaceholder": {
+    "message": "e.g. Work profile"
+  },
+  "entryColor": {
+    "message": "Entry color"
+  },
+  "key": {
+    "message": "Key"
+  },
+  "value": {
+    "message": "Value"
+  },
+  "removeValue": {
+    "message": "Remove value"
+  },
+  "addValue": {
+    "message": "+ Add value"
+  },
+  "saveEntry": {
+    "message": "Save entry"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "deleteEntry": {
+    "message": "Delete entry"
+  },
+  "entryDeleted": {
+    "message": "Entry deleted."
+  },
+  "uniqueKeyRequired": {
+    "message": "Use a unique, nonempty key for every value."
+  },
+  "entryNameRequired": {
+    "message": "Enter an entry name."
+  },
+  "entrySaved": {
+    "message": "Entry saved locally."
+  },
+  "chooseInput": {
+    "message": "Choose an editable input first."
+  },
+  "keepField": {
+    "message": "Keep this field value"
+  },
+  "createEntryFirst": {
+    "message": "Create an entry first, then right-click the field again."
+  },
+  "saveToEntry": {
+    "message": "Save to entry"
+  },
+  "associatedKey": {
+    "message": "Associated key"
+  },
+  "saveFieldHint": {
+    "message": "Saving replaces this key in the chosen entry and remembers the field association on this page."
+  },
+  "saveValue": {
+    "message": "Save value"
+  },
+  "fieldSaved": {
+    "message": "Value and field association saved."
+  },
+  "invalidEntry": {
+    "message": "Invalid entry"
+  },
+  "entryMissing": {
+    "message": "Entry no longer exists"
+  },
+  "keyRequired": {
+    "message": "A key is required"
+  },
+  "unknownAction": {
+    "message": "Unknown action"
+  },
+  "entryCount": {
+    "message": "Entries: $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmDelete": {
+    "message": "Delete “$NAME$” and its saved values?",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "Work"
+      }
+    }
+  }
+}
