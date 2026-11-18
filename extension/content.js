@@ -1,24 +1,55 @@
-(async () => {
-  let boot = await chrome.runtime.sendMessage({type:'bootstrap'});
+if (!globalThis.QuickfillReady) {
+globalThis.QuickfillReady = (async () => {
+  async function bootstrap(){
+    let timeout;
+    try{return await Promise.race([chrome.runtime.sendMessage({type:'bootstrap'}),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Quickfill startup timed out')),4500);})]);}
+    finally{clearTimeout(timeout);}
+  }
+  let boot = await bootstrap();
+  const standalone=location.href.split(/[?#]/)[0]===chrome.runtime.getURL('options.html');
+  const managerTabId=standalone?(await chrome.tabs.getCurrent())?.id:null;
+  const isCurrent=()=>!!chrome.runtime?.id;
+  // Reloaded extensions leave their old DOM behind. Legacy observers may restore
+  // removed hosts, so keep those hosts inert even if they are reattached.
+  document.querySelectorAll('quickfill-sidebar,quickfill-tools').forEach(old=>{
+    old.dataset.quickfillRetired='';old.inert=true;
+    old.style.setProperty('opacity','0','important');old.style.setProperty('pointer-events','none','important');
+    old.style.setProperty('visibility','hidden','important');old.remove();
+  });
   const t = (key, substitutions) => QuickfillCore.formatMessage(boot.messages, key, substitutions);
   const core = globalThis.QuickfillCore;
   let data = boot.data, target = null, visible = false, mode = 'registry', query = '';
   let host, shadow, main, status, search, header, registryTools, taskTools, destination;
-  let draft=null, filtersOpen=false;
+  let draft=null, filtersOpen=false, fullscreen=standalone, fullscreenButton, screenVersion=0;
   const fields = QuickfillFields, editable = fields.editable;
-  let undoBatch = [], undoButton, showAll = false, languageRequest = 0;
+  let undoBatch = [], undoButton, showAll = standalone, languageRequest = 0;
   const power=QuickfillPower;
-  const prefs=()=>QuickfillRegistry.settings(data.preferences?.[location.origin]);
+  const types=QuickfillTypes;
+  const typeFor=(entry,key)=>Object.hasOwn(entry.types||{},key)?entry.types[key]:'string';
+  const prefs=()=>QuickfillRegistry.effectiveSettings(standalone?undefined:data.preferences?.[location.origin],data.globalPreferences);
+  const globalSuggestions=()=>QuickfillRegistry.globalSettings(data.globalPreferences).suggestions;
+  const inheritedSuggestionsLabel=()=>t('suggestions_inherit',t('suggestions_'+globalSuggestions()));
   const scopeFor=entry=>JSON.stringify([location.origin,location.pathname,entry.id]);
   const excluded=el=>!!el && prefs().excluded.includes(fields.describe(el).signature);
   let tagFilter='',collectionFilter='',demoEntry;
-  const surface=QuickfillSurface({t,node,button,prefs,undo,canUndo:()=>undoBatch.length>0,
+  const surface=QuickfillSurface({t,node,button,prefs,undo,active:isCurrent,renderValue:typedValue,canUndo:()=>undoBatch.length>0,
     matches:el=>suggestions(el),
     choose:(match,el)=>{target=el;chooseValue(match.entry,match.key,el);},
-    commands:()=>[
-      ...data.entries.flatMap(entry=>Object.entries(entry.values).map(([key,value])=>({group:'values',label:value,detail:entry.name+' · '+key,color:entry.color,run:()=>chooseValue(entry,key)}))),
+    launcherActions:field=>[
+      {label:t('keepField'),run:()=>{target=field;saveField();}},
+      {label:t('editAssociation'),run:()=>{target=field;toggle(true);associationEditor();}},
+      {label:t('openSidebar'),run:()=>{target=field;toggle(true);}},
+      {label:t('settings'),run:()=>{target=field;toggle(true);settings();}}
+    ],
+    commands:()=>standalone?[
+      ...data.entries.map(entry=>({label:entry.name,detail:t('editEntry'),color:entry.color,icon:'edit',run:()=>editor(entry)})),
+      {label:t('newEntry'),icon:'add',run:()=>editor()},
+      {label:t('settings'),icon:'settings',run:settings},
+      {label:t('importData'),icon:'import',run:importData},{label:t('exportData'),icon:'export',run:exportData}
+    ]:[
+      ...data.entries.flatMap(entry=>Object.entries(entry.values).map(([key,value])=>({group:'values',label:value,type:typeFor(entry,key),detail:entry.name+' · '+key,color:entry.color,run:()=>chooseValue(entry,key)}))),
       ...core.ordered(data.entries,location.origin).map(entry=>({label:t('fillWith',entry.name)+' '+(entry.tags||[]).join(' ')+' '+(entry.collection||''),color:entry.color,run:()=>{toggle(true);previewForm(entry);}})),
-      {label:t('keepField'),run:saveField},{label:t('undo'),run:undo},
+      {label:t('keepField'),icon:'save',run:saveField},{label:t('saveAllFields'),icon:'save',run:saveAllFields},{label:t('undo'),icon:'undo',run:undo},
       {label:t('newEntry'),run:()=>{toggle(true);editor();}},
       {label:t('settings'),run:()=>{toggle(true);settings();}},
       {label:t('walkthrough'),run:()=>{toggle(true);walkthrough();}}
@@ -30,7 +61,7 @@
     // Resolve fixed transformations for compatibility; dynamic templates require a review before writing.
     const entries=relevantEntries().map(entry=>({...entry,values:Object.fromEntries(Object.entries(entry.values).map(([key,value])=>[key,power.dynamic(value)?value:power.resolve(value,{},entry.transforms?.[key])]))}));
     const matches=core.suggestions(entries,{...field,type:'text',options:undefined});
-    return matches.filter(match=>power.dynamic(match.value)||core.compatible(field,match.value)).map(match=>({...match,entry:data.entries.find(e=>e.id===match.entry.id)}));
+    return matches.filter(match=>power.dynamic(match.value)||core.compatible(field,match.value)).map(match=>({...match,type:typeFor(match.entry,match.key),entry:data.entries.find(e=>e.id===match.entry.id)}));
   }
   async function contextFor(entry){
     if(Object.values(entry.values).some(value=>value.includes('{{counter}}'))){const next=await mutate({action:'reserve',id:entry.id});return power.context(next.counters[entry.id]);}
@@ -45,17 +76,18 @@
   }
   async function chooseValue(entry,key,el=target){
     target=el;
+    let request;
     try{
       const raw=entry.values[key];
-      if(!power.dynamic(raw)){fill(power.resolve(raw,{},entry.transforms?.[key]));return;}
-      toggle(true);screen('resolving',t('resolving'));
-      const context=await contextFor(entry);if(!visible||mode!=='resolving')return;
-      const value=power.resolve(raw,context,entry.transforms?.[key]);screen('generated',t('reviewGenerated'));
-      main.append(node('p',{class:'hint'},`${entry.name} · ${key}`),node('p',{class:'resolved'},value));
+      if(!power.dynamic(raw)){const value=power.resolve(raw,{},entry.transforms?.[key]),error=types.validate(value,typeFor(entry,key),{allowVariables:false});if(error){notify(t(error));return;}fill(value);return;}
+      toggle(true);request=screen('resolving',t('resolving'));
+      const context=await contextFor(entry);if(!visible||request!==screenVersion)return;
+      const value=power.resolve(raw,context,entry.transforms?.[key]),error=types.validate(value,typeFor(entry,key),{allowVariables:false});if(error)throw new Error(error);screen('generated',t('reviewGenerated'));
+      main.append(node('p',{class:'hint'},`${entry.name} · ${key}`),typedBlock(value,typeFor(entry,key)));
       const actions=node('div',{class:'actions sticky-actions'});actions.append(button(t('applyValue'),()=>{target=el;if(fill(value))back();},'primary'),button(t('cancel'),back));main.append(actions);
-    }catch(e){back();notify(t(e.message));}
+    }catch(e){if(request===undefined||request===screenVersion){back();notify(t(e.message));}}
   }
-  function duplicate(entry){toggle(true);editor({...structuredClone(entry),id:crypto.randomUUID(),name:t('copyName',entry.name).slice(0,100),pinned:false});}
+  function duplicate(entry){toggle(true);editor({...structuredClone(entry),id:core.uuid(),name:t('copyName',entry.name).slice(0,100),pinned:false});}
   function filters(){
     const box=node('div',{class:'filter-row'});
     const collection=labeled(box,t('collection'),node('select',{'data-collection-filter':''}));
@@ -65,29 +97,56 @@
     [...new Set(data.entries.flatMap(e=>e.tags||[]))].sort().forEach(value=>tag.append(node('option',{value},value)));tag.value=tagFilter;
     collection.addEventListener('change',()=>{collectionFilter=collection.value;render();});tag.addEventListener('change',()=>{tagFilter=tag.value;render();});return box;
   }
-  function websiteSettings(){
-    const section=node('section',{class:'pair'});section.append(node('h2',{},t('websiteSettings')),node('p',{class:'hint'},location.origin));
-    const current=prefs(),form=node('form');
+  function websiteSettings(origin=location.origin){
+    const section=node('section',{class:'pair'});if(!standalone)section.append(node('h2',{},t('websiteSettings')),node('p',{class:'hint'},origin));
+    const current=QuickfillRegistry.effectiveSettings(data.preferences?.[origin],data.globalPreferences),form=node('form',standalone?{'aria-label':origin}:{});
     const preferred=labeled(form,t('preferredEntry'),node('select'));preferred.append(node('option',{value:''},t('noPreference')));
     data.entries.forEach(entry=>preferred.append(node('option',{value:entry.id},entry.name)));preferred.value=current.preferredEntry;
     const appearance=node('fieldset');appearance.append(node('legend',{},t('appearance')));const width=labeled(appearance,t('sidebarWidth'),node('input',{type:'number',min:'320',max:'640',step:'20',required:''}));width.value=current.width;
-    const behavior=labeled(form,t('suggestionBehavior'),node('select'));
-    ['off','button'].forEach(value=>behavior.append(node('option',{value},t('suggestions_'+value))));behavior.value=current.suggestions;
+    const behavior=labeled(form,t('websiteSuggestionBehavior'),node('select',{'data-site-suggestions':''}));
+    behavior.append(node('option',{value:'inherit'},inheritedSuggestionsLabel()));
+    ['off','button'].forEach(value=>behavior.append(node('option',{value},t('suggestions_'+value))));behavior.value=QuickfillRegistry.settings(data.preferences?.[origin]).suggestions;
     const exclusions=new Set(current.excluded);
     const choices=new Map(current.excluded.map(signature=>{let label=t('unavailableField');try{const parts=JSON.parse(signature);label=parts[3]||label;}catch{}return [signature,label];}));
-    fields.collect().forEach(el=>{const field=fields.describe(el);choices.set(field.signature,fieldLabel(el));});
+    if(!standalone)fields.collect().forEach(el=>{const field=fields.describe(el);choices.set(field.signature,fieldLabel(el));});
     const details=node('details');details.append(node('summary',{},t('excludedFields')));
     for(const [signature,label] of choices){const row=node('label',{class:'check'}),check=node('input',{type:'checkbox'});check.checked=exclusions.has(signature);check.addEventListener('change',()=>check.checked?exclusions.add(signature):exclusions.delete(signature));row.append(check,document.createTextNode(label));details.append(row);}
     form.append(node('p',{class:'hint'},t('autofillCoexistence')),details,appearance,node('button',{type:'submit',class:'primary'},t('savePreferences')));
-    form.addEventListener('submit',async event=>{event.preventDefault();try{await mutate({action:'preferences',origin:location.origin,preferences:{preferredEntry:preferred.value,width:Number(width.value),suggestions:behavior.value,excluded:[...exclusions]}});updatePreferences();notify(t('preferencesSaved'));}catch(e){notify(t(e.message));}});
+    form.addEventListener('submit',async event=>{event.preventDefault();try{await mutate({action:'preferences',origin,preferences:{preferredEntry:preferred.value,width:Number(width.value),suggestions:behavior.value,excluded:[...exclusions]}});updatePreferences();notify(t('preferencesSaved'));}catch(e){notify(t(e.message));}});
     section.append(form);return section;
   }
-  function updatePreferences(){if(shadow)shadow.querySelector('.panel').style.width=`min(${prefs().width}px,100vw)`;if(excluded(target))surface.hide();else surface.refresh();}
+  function savedWebsiteSettings(){
+    const section=node('section',{class:'settings-section saved-websites'});section.append(node('h2',{},t('savedWebsites')));
+    const origins=Object.keys(data.preferences||{}).sort();
+    if(!origins.length){section.append(node('p',{class:'hint'},t('savedWebsitesHint')));return section;}
+    const select=labeled(section,t('websiteSettings'),node('select',{'data-saved-website':''}));
+    origins.forEach(origin=>select.append(node('option',{value:origin},origin)));
+    const body=node('div');const update=()=>body.replaceChildren(websiteSettings(select.value));select.addEventListener('change',update);update();section.append(body);return section;
+  }
+  function updatePreferences(){
+    if(shadow){
+      shadow.querySelector('.panel').style.width=fullscreen?'100vw':`min(${prefs().width}px,100vw)`;
+      const global=shadow.querySelector('[data-global-suggestions]'),inherit=shadow.querySelector('[data-site-suggestions] option[value=inherit]');
+      if(global&&!global.disabled&&global.value!==globalSuggestions()){global.value=globalSuggestions();global.dispatchEvent(new Event('input'));}
+      if(inherit&&inherit.textContent!==inheritedSuggestionsLabel())inherit.textContent=inheritedSuggestionsLabel();
+    }
+    if(standalone||excluded(target)||prefs().suggestions==='off')surface.hide();
+    else{
+      surface.refresh();
+      if(!visible){let active=document.activeElement;while(active?.shadowRoot?.activeElement)active=active.shadowRoot.activeElement;if(editable(active)&&!excluded(active))surface.track(active);}
+    }
+  }
+  function setFullscreen(value){
+    fullscreen=standalone||value;const panel=shadow.querySelector('.panel');panel.classList.toggle('fullscreen',fullscreen);
+    if(fullscreen&&!standalone){panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');}else{panel.removeAttribute('role');panel.removeAttribute('aria-modal');}
+    if(fullscreenButton){const label=t(fullscreen?'exitFullscreen':'enterFullscreen');fullscreenButton.replaceChildren(QuickfillIcon(fullscreen?'shrink':'fullscreen'));fullscreenButton.title=label;fullscreenButton.setAttribute('aria-label',label);fullscreenButton.setAttribute('aria-pressed',String(fullscreen));}updatePreferences();
+  }
+  async function openInTab(){try{const result=await chrome.runtime.sendMessage({type:'open-options'});if(result?.error)throw new Error(result.error);}catch(error){notify(error.message);}}
   function walkthrough(){
     screen('walkthrough',t('walkthrough'));main.append(node('p',{},t('welcomeText')));
     const create=button(t('createExample'),async()=>{
       try{
-        const entry={id:crypto.randomUUID(),name:t('exampleProfile'),color:'#a05dff',values:{name:'Alex Example',email:'alex@example.com'},tags:['demo'],collection:'',sites:[]};
+        const entry={id:core.uuid(),name:t('exampleProfile'),color:'#a05dff',values:{name:'Alex Example',email:'alex@example.com'},tags:['demo'],collection:'',sites:[]};
         await mutate({action:'upsert',entry});demoEntry=entry;practice();
       }catch(e){notify(e.message);}
     },'primary');main.append(create,button(t('skipWalkthrough'),finishWalkthrough,'quiet'));
@@ -106,7 +165,12 @@
       else el.setAttribute(key, value);
     }
     if (text !== undefined) el.textContent = text;
+    if(tag==='button'&&text)addButtonIcon(el,text);
     return el;
+  }
+  function addButtonIcon(el,label){
+    const actions={newEntry:'add',newEntryButton:'add',addValue:'add',saveEntry:'save',saveValue:'save',savePreferences:'save',saveMapping:'save',saveAllFields:'save',saveSelectedFields:'save',edit:'edit',editAssociation:'edit',duplicate:'copy',deleteEntry:'delete',removeValue:'delete',importData:'import',exportData:'export',filters:'filter',clearFilters:'filter',undo:'undo',cancel:'cancel',back:'back',fillForm:'play',applyForm:'play',applyValue:'play',previewImport:'import',applyImport:'import',resumeDraft:'edit',discardDraft:'delete',keepField:'save',settings:'settings',openSidebar:'list',walkthrough:'magic',currentSite:'link',finishWalkthrough:'check',skipWalkthrough:'forward',createExample:'add',fillSample:'play',close:'close',suggestedValues:'list',clearValue:'delete',today:'calendar'};
+    const icon=Object.entries(actions).find(([key])=>t(key)===label)?.[1];if(icon){const svg=QuickfillIcon(icon);svg.classList.add('button-icon');el.prepend(svg);}
   }
   function button(text, handler, className = '') {return node('button', {type:'button', class:className, onclick:handler}, text);}
   const describe = () => target ? fields.describe(target, data.associations) : null;
@@ -125,12 +189,25 @@
   function syncHeader(){
     if(!header)return;const registry=['registry','fill'].includes(mode);registryTools.hidden=!registry;taskTools.hidden=registry;
     taskTools.querySelector('strong').tabIndex=-1;taskTools.querySelector('strong').textContent=main.querySelector('h2')?.textContent||'';updateDestination();
+    header.querySelectorAll('[data-view]').forEach(item=>{if(item.dataset.view===(['settings','import','importPreview'].includes(mode)?'settings':'registry'))item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
   }
   function fieldLabel(el){return el?.getAttribute('aria-label')||el?.labels?.[0]?.textContent?.trim()||el?.getAttribute('placeholder')||fields.describe(el).hints[0]||el?.type||t('value');}
-  function updateDestination(){if(destination){destination.textContent=target?.isConnected?t('destination',fieldLabel(target)):t('selectField');destination.title=destination.textContent;}}
-  function screen(next,title){captureDraft();mode=next;main.replaceChildren(node('h2',{},title));main.scrollTop=0;syncHeader();taskTools.querySelector('strong').focus({preventScroll:true});}
+  function updateDestination(){if(destination&&!standalone){destination.textContent=target?.isConnected?t('destination',fieldLabel(target)):t('selectField');destination.title=destination.textContent;}}
+  function screen(next,title){QuickfillControls.close();captureDraft();mode=next;++screenVersion;main.dataset.view=next;main.replaceChildren(node('h2',{},title));main.scrollTop=0;syncHeader();taskTools.querySelector('strong').focus({preventScroll:true});return screenVersion;}
+  function typedValue(value,type='string'){
+    const fragment=document.createDocumentFragment();
+    if(type==='string'){fragment.append(highlighted(value));return fragment;}
+    for(const token of types.tokenize(value,type)){const span=node('span',{class:'token token-'+token.kind});span.append(highlighted(token.text));fragment.append(span);}return fragment;
+  }
+  function typedBlock(value,type='string'){const block=node('pre',{class:'resolved typed-value','data-value-kind':type});block.append(typedValue(value,type));return block;}
   function highlighted(text){const fragment=document.createDocumentFragment();const q=query.toLocaleLowerCase();let rest=String(text);if(!q){fragment.append(rest);return fragment;}let at;while((at=rest.toLocaleLowerCase().indexOf(q))>=0){fragment.append(rest.slice(0,at),node('mark',{},rest.slice(at,at+q.length)));rest=rest.slice(at+q.length);}fragment.append(rest);return fragment;}
-  function validation(input,message){input.setCustomValidity(message);input.setAttribute('aria-invalid','true');let error=input.nextElementSibling;if(!error?.classList.contains('field-error')){error=node('p',{class:'field-error',id:input.id+'-error'});input.after(error);}error.textContent=message;input.setAttribute('aria-describedby',error.id);input.closest('details')?.setAttribute('open','');input.focus();input.addEventListener('input',()=>{input.setCustomValidity('');input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby');error.remove();},{once:true});}
+  function clearValidation(input){input.setCustomValidity('');input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby');if(input.nextElementSibling?.classList.contains('field-error'))input.nextElementSibling.remove();}
+  function lockForm(form){
+    const controls=[...form.querySelectorAll('input,select,textarea,button')].filter(el=>el.type!=='submit'&&!(el.localName==='button'&&el.textContent===t('cancel'))).map(el=>[el,el.disabled]);
+    controls.forEach(([el])=>{el.disabled=true;});form.setAttribute('aria-busy','true');
+    return ()=>{controls.forEach(([el,disabled])=>{el.disabled=disabled;});form.removeAttribute('aria-busy');};
+  }
+  function validation(input,message){input.setCustomValidity(message);input.setAttribute('aria-invalid','true');let error=input.nextElementSibling;if(!error?.classList.contains('field-error')){error=node('p',{class:'field-error',id:input.id+'-error'});input.after(error);}error.textContent=message;input.setAttribute('aria-describedby',error.id);input.closest('details')?.setAttribute('open','');input.focus();input.addEventListener('input',()=>clearValidation(input),{once:true});}
 
   async function mutate(payload) {
     const response = await chrome.runtime.sendMessage({type:'mutate', ...payload});
@@ -138,34 +215,49 @@
     data = response.data; return data;
   }
   function mount() {
-    if (host) return;
+    if (host) {if(!host.isConnected)document.documentElement.append(host);return;}
     host = document.createElement('quickfill-sidebar');
     host.style.cssText = 'all:initial!important;position:fixed!important;inset:0 0 auto auto!important;z-index:2147483646!important;';
     shadow = host.attachShadow({mode:'open'});
     shadow.append(node('style', {}, globalThis.QuickfillStyles));
-    const panel = node('aside', {class:'panel', lang:boot.locale, 'aria-label':t('registryLabel')});
+    const panel = node(standalone?'div':'aside', {class:'panel'+(standalone?' standalone':''), lang:boot.locale, 'aria-label':t('registryLabel')});
     header = node('header');
     const top=node('div',{class:'top'}),brand=node('div',{class:'brand'});brand.append(QuickfillIcon('magic'),node('h1',{},'Quickfill'));
-    const controls=node('div',{class:'row'});controls.append(iconButton(t('settings'),'settings',settings),menu([[t('importData'),importData],[t('exportData'),exportData],[t('palette'),()=>surface.palette()]]),iconButton(t('closeSidebar'),'close',()=>toggle(false)));top.append(brand,controls);
+    const controls=node('div',{class:'row header-controls'});
+    if(!standalone){
+      fullscreenButton=iconButton(t('enterFullscreen'),'fullscreen',()=>setFullscreen(!fullscreen));fullscreenButton.dataset.action='fullscreen';
+      const newTab=iconButton(t('openInTab'),'external',openInTab);newTab.dataset.action='openInTab';
+      controls.append(fullscreenButton,newTab,iconButton(t('settings'),'settings',settings));
+    }
+    controls.append(menu([[t('importData'),importData],[t('exportData'),exportData],[t('palette'),()=>surface.palette()]]));
+    if(!standalone)controls.append(iconButton(t('closeSidebar'),'close',()=>toggle(false)));top.append(brand,controls);
     registryTools=node('div');const searchRow=node('div',{class:'search-row'});
     search=node('input',{class:'search',type:'search',placeholder:t('searchPlaceholder'),'aria-label':t('searchLabel'),oninput:()=>{query=search.value;mode='registry';render();}});
     searchRow.append(search,button(t('newEntryButton'),()=>editor(),'primary'));registryTools.append(searchRow);
     taskTools=node('div',{class:'task-heading',hidden:''});taskTools.append(iconButton(t('back'),'back',back),node('strong'));
     header.append(top,registryTools,taskTools);
+    if(standalone){
+      const navigation=node('nav',{class:'manager-nav','aria-label':'Quickfill'});
+      for(const [view,label,icon,run] of [['registry',t('manageEntries'),'list',back],['settings',t('settings'),'settings',settings]]){const item=button('',run,'quiet');item.append(QuickfillIcon(icon),document.createTextNode(label));item.dataset.view=view;navigation.append(item);}
+      top.after(navigation);document.title=t('managerTitle');document.documentElement.lang=boot.locale;
+    }
     main=node('main');
     const footer=node('footer');destination=node('div',{class:'destination'});
     status=node('div',{class:'status',role:'status','aria-live':'polite'});
     undoButton=button(t('undo'),undo,'quiet');undoButton.disabled=!undoBatch.length;
+    if(standalone){destination.hidden=true;undoButton.hidden=true;}
     const feedback=node('div',{class:'feedback'});feedback.append(status,undoButton,iconButton(t('dismiss'),'close',()=>notify('')));
     footer.append(destination,feedback);panel.append(header,main,footer);shadow.append(panel);
     shadow.addEventListener('pointerdown',event=>{if(!event.target.closest('.menu-wrap'))shadow.querySelectorAll('.menu-list').forEach(el=>{el.hidden=true;el.previousSibling.setAttribute('aria-expanded','false');});});
     shadow.addEventListener('keydown',event=>{if(event.key==='Escape'){const open=shadow.querySelector('.menu-list:not([hidden])');if(open){event.preventDefault();event.stopPropagation();open.hidden=true;open.previousSibling.setAttribute('aria-expanded','false');open.previousSibling.focus();}}});
-    document.documentElement.append(host); updatePreferences();
+    document.documentElement.append(host);QuickfillControls.enhance(shadow,{t});setFullscreen(fullscreen);
   }
   function toggle(force) {
-    mount(); visible = force ?? !visible; host.style.setProperty('display', visible ? 'block' : 'none', 'important');
+    mount(); visible = standalone|| (force ?? !visible); host.style.setProperty('display', visible ? 'block' : 'none', 'important');
     if (!visible) {
+      QuickfillControls.close();
       captureDraft();
+      ++screenVersion;
       mode = 'registry';
       query = '';
       search.value = '';
@@ -193,12 +285,12 @@
   async function flags(entry, patch) {
     try {await mutate({action:'flags',id:entry.id,...patch}); render();} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}
   }
-  const relevantEntries = () => core.ordered(data.entries.filter(e => (showAll || core.relevant(e,location.origin)) && (!tagFilter || e.tags?.includes(tagFilter)) && (!collectionFilter || e.collection===collectionFilter)),location.origin).sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||Number(b.id===prefs().preferredEntry)-Number(a.id===prefs().preferredEntry));
+  const relevantEntries = () => core.ordered(data.entries.filter(e => (standalone || showAll || core.relevant(e,location.origin)) && (!tagFilter || e.tags?.includes(tagFilter)) && (!collectionFilter || e.collection===collectionFilter)),standalone?'':location.origin).sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||Number(b.id===prefs().preferredEntry)-Number(a.id===prefs().preferredEntry));
   function reason(match) {return match.reason === 'association' ? t('savedAssociation') : t('matchedHint',match.hint);}
   function valueButton(entry, key, value) {
-    const b = button('', () => chooseValue(entry,key), 'value');
-    b.draggable = true; b.setAttribute('aria-label', `${key}: ${value}`);
-    const label=node('small'),text=node('span');label.append(highlighted(key));text.append(highlighted(value||t('emptyValue')));b.append(label,text,QuickfillMagicParticles());b.title=value;b.style.setProperty('--entry-color',entry.color);
+    const b = button('', () => standalone?editor(entry):chooseValue(entry,key), 'value');
+    b.draggable = !standalone; b.setAttribute('aria-label', `${key}: ${value}`);
+    const label=node('small'),text=node('span'),type=typeFor(entry,key);label.append(highlighted(key));if(type!=='string')label.append(node('span',{class:'type-badge'},t('type_'+type)));text.append(typedValue(value||t('emptyValue'),type));b.append(label,text,QuickfillMagicParticles());b.title=value;b.dataset.valueKind=type;b.style.setProperty('--entry-color',entry.color);
     if(value.length>100||value.includes('\n')){b.classList.add('long-value');b.setAttribute('aria-label',key+': '+value);}
     b.addEventListener('dragstart', event => {
       event.dataTransfer.setData('text/plain', value);
@@ -214,22 +306,24 @@
       const expand=iconButton(t(entry.collapsed?'expand':'collapse'),entry.collapsed?'down':'up',()=>flags(entry,{collapsed:!entry.collapsed}));expand.setAttribute('aria-expanded',String(!entry.collapsed));row.append(expand,menu([[t('edit'),()=>editor(entry)],[t('duplicate'),()=>duplicate(entry)],[t('deleteEntry'),()=>deleteEntry(entry),true]]));}
     article.append(row);
     if(entry.collection||entry.tags?.length){const meta=node('p',{class:'hint metadata'});meta.append(highlighted([entry.collection,...(entry.tags||[]).map(tag=>'#'+tag)].filter(Boolean).join(' · ')));article.append(meta);}
-    if(edit){const actions=node('div',{class:'card-actions'});actions.append(node('span',{class:'hint'},t('valueCount',String(Object.keys(entry.values).length))),button(t('fillForm'),()=>previewForm(entry),'quiet'));article.append(actions);}
-    if(!edit||!entry.collapsed||query)for(const [key,value] of pairs){article.append(valueButton(entry,key,value));if(value.length>100||value.includes('\n')){const full=node('details',{class:'full-value'});full.append(node('summary',{},t('showFullValue')),node('p',{class:'resolved'},value));article.append(full);}}
+    if(edit){const actions=node('div',{class:'card-actions'});actions.append(node('span',{class:'hint'},t('valueCount',String(Object.keys(entry.values).length))),standalone?button(t('edit'),()=>editor(entry),'quiet'):button(t('fillForm'),()=>previewForm(entry),'quiet'));article.append(actions);}
+    if(!edit||!entry.collapsed||query)for(const [key,value] of pairs){article.append(valueButton(entry,key,value));if(value.length>100||value.includes('\n')){const full=node('details',{class:'full-value'});full.append(node('summary',{},t('showFullValue')),typedBlock(value,typeFor(entry,key)));article.append(full);}}
     if (!pairs.length) article.append(node('p', {class:'hint'}, t('noValues')));
     return article;
   }
   function render() {
     if (!visible || !['registry','fill'].includes(mode)) return;
+    ++screenVersion;
+    main.dataset.view='registry';
     main.replaceChildren();
     syncHeader();
     const toolbar=node('div',{class:'row registry-toolbar'}),scope=node('select',{'aria-label':t('entryScope')});
     scope.append(node('option',{value:'site'},t('websiteSettings')),node('option',{value:'all'},t('allEntries')));scope.value=showAll?'all':'site';scope.addEventListener('change',()=>{showAll=scope.value==='all';render();});
-    const filterButton=button(t('filters'),()=>{filtersOpen=!filtersOpen;render();});filterButton.setAttribute('aria-expanded',String(filtersOpen));toolbar.append(scope,filterButton);main.append(toolbar);
+    const filterButton=button(t('filters'),()=>{filtersOpen=!filtersOpen;render();});filterButton.setAttribute('aria-expanded',String(filtersOpen));toolbar.append(standalone?node('strong',{},t('allEntries')):scope,filterButton);main.append(toolbar);
     const filterBox=filters();filterBox.hidden=!filtersOpen;main.append(filterBox);
     const chips=node('div',{class:'chips'});if(collectionFilter)chips.append(button(collectionFilter+' ×',()=>{collectionFilter='';render();},'chip'));if(tagFilter)chips.append(button('#'+tagFilter+' ×',()=>{tagFilter='';render();},'chip'));main.append(chips);
-    if(draft){const resume=node('div',{class:'resume'});resume.append(button(t('resumeDraft'),()=>{mode='editor';main.replaceChildren(...draft.nodes);syncHeader();main.querySelector('input')?.focus();},'quiet'),button(t('discardDraft'),()=>{draft=null;render();},'quiet'));main.append(resume);}
-    if(!data.onboardingDone){const welcome=node('div',{class:'pair welcome'});welcome.append(node('p',{},t('welcomeText')),button(t('walkthrough'),walkthrough),button(t('skipWalkthrough'),finishWalkthrough,'quiet'));main.append(welcome);}
+    if(draft){const resume=node('div',{class:'resume'});resume.append(button(t('resumeDraft'),()=>{mode='editor';main.dataset.view='editor';main.replaceChildren(...draft.nodes);syncHeader();main.querySelector('input')?.focus();},'quiet'),button(t('discardDraft'),()=>{draft=null;render();},'quiet'));main.append(resume);}
+    if(!standalone&&!data.onboardingDone){const welcome=node('div',{class:'pair welcome'});welcome.append(node('p',{},t('welcomeText')),button(t('walkthrough'),walkthrough),button(t('skipWalkthrough'),finishWalkthrough,'quiet'));main.append(welcome);}
     const count=node('span',{class:'count',role:'status'});main.append(count);
     if (mode === 'fill' && target) {
       main.append(node('h2', {class:'section'}, t('suggestedValues')));
@@ -256,51 +350,84 @@
     }
   }
   function labeled(form, title, input) {
-    const id = `qf-${crypto.randomUUID()}`; input.id = id;
+    const id = `qf-${core.uuid()}`; input.id = id;
     form.append(node('label', {for:id}, title), input); return input;
   }
+  function valueEditor(typeParent,valueParent,raw='',initialType='string'){
+    const select=labeled(typeParent,t('valueType'),node('select',{'data-value-type':''}));
+    for(const type of types.names)select.append(node('option',{value:type},t('type_'+type)));select.value=initialType;
+    const body=node('div',{class:'typed-editor'});valueParent.append(body);let input;
+    function paint(value){
+      const type=select.value;body.replaceChildren();
+      if(type==='bool'){
+        input=node('select',{'data-value-input':''});input.append(node('option',{value:''},t('chooseBoolean')),node('option',{value:'true'},t('booleanTrue')),node('option',{value:'false'},t('booleanFalse')));
+        if(value&&!['true','false'].includes(value))input.append(node('option',{value},value));
+      }else if(['date','datetime','number'].includes(type))input=node('input',{type:'text','data-value-input':'',maxlength:'100000',...(type==='number'?{inputmode:'decimal',placeholder:'42.5'}:{placeholder:type==='date'?'YYYY-MM-DD':'YYYY-MM-DDTHH:mm'})});
+      else input=node('textarea',{'data-value-input':'',maxlength:'100000',rows:type==='string'?'2':'4',spellcheck:type==='string'?'true':'false',placeholder:type==='json'?'{"name": "Alex"}':type==='xml'?'<name>Alex</name>':'alex@example.com'});
+      input.value=value;labeled(body,t('value'),input);input.previousSibling.className='sr-only';
+      if(['date','datetime'].includes(type)){const anchor=node('span');input.replaceWith(anchor);anchor.replaceWith(QuickfillControls.datePicker(input,type,{t}));}
+      const preview=node('pre',{class:'typed-preview','aria-hidden':'true'}),hint=node('p',{class:'hint typed-hint'});body.append(preview,hint);
+      const update=()=>{const error=types.validate(input.value,type);preview.hidden=type==='string'||!input.value;preview.replaceChildren(typedValue(input.value,type));hint.hidden=!error;hint.textContent=error?t(error):'';};
+      input.addEventListener('input',update);input.addEventListener('change',update);update();
+    }
+    select.addEventListener('change',()=>{const raw=input.value;paint(raw);});paint(raw);
+    return {select,get input(){return input;},get value(){return input.value;},get type(){return select.value;},validate(){const error=types.validate(input.value,select.value);if(error){validation(input,t(error));return false;}return true;}};
+  }
+  function inferType(el){const type=el.type;if(type==='checkbox')return 'bool';if(type==='number'&&fields.value(el)!=='')return 'number';if(type==='date'&&fields.value(el)!=='')return 'date';if(type==='datetime-local'&&fields.value(el)!=='')return 'datetime';return 'string';}
   function editor(existing) {
     screen('editor',existing?.id&&data.entries.some(e=>e.id===existing.id)?t('editEntry'):t('newEntry'));draft=null;
-    const form = node('form');
+    const entryId=existing?.id||core.uuid();
+    const form = node('form',{class:'entry-editor'});
     const name = labeled(form, t('entryName'), node('input', {required:'', placeholder:t('entryNamePlaceholder'), maxlength:'100'})); name.value = existing?.name || '';
     if(!existing?.id){const template=labeled(form,t('entryTemplate'),node('select',{'data-template':''}));template.append(node('option',{value:''},t('blankTemplate')));Object.keys(power.templates).forEach(key=>template.append(node('option',{value:key},t('template_'+key))));template.addEventListener('change',()=>{if(template.value)editor({...existing,name:name.value||t('template_'+template.value),values:{...power.templates[template.value]}});});}
     const color = labeled(form, t('entryColor'), node('input', {type:'color'})); color.value = existing?.color || '#a05dff';
     const organization=node('details',{class:'organization'});organization.append(node('summary',{},t('organization')));
     const sites = labeled(organization,t('sites'),node('textarea',{placeholder:'https://example.com'})); sites.value = (existing?.sites || []).join('\n');
-    organization.append(node('p',{class:'hint'},t('sitesHint')),button(t('currentSite'),()=>{sites.value=location.origin;},'quiet'));
+    organization.append(node('p',{class:'hint'},t('sitesHint')));if(!standalone)organization.append(button(t('currentSite'),()=>{sites.value=location.origin;},'quiet'));
     const tags=labeled(organization,t('tags'),node('input',{'data-tags':'',placeholder:t('tagsHint')}));tags.value=(existing?.tags||[]).join(', ');
     const collection=labeled(organization,t('collection'),node('input',{'data-collection':'',maxlength:'100'}));collection.value=existing?.collection||'';
     const swatches=node('div',{class:'swatches',role:'group','aria-label':t('entryColor')});
     for(const hex of ['#a05dff','#315de4','#16866b','#ce4774','#b56b16','#65748b']){const swatch=button('',()=>{color.value=hex;updateSwatches();},'swatch');swatch.style.setProperty('--swatch',hex);swatch.title=hex;swatch.setAttribute('aria-label',hex);swatch.dataset.color=hex;swatches.append(swatch);}
     function updateSwatches(){swatches.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.color===color.value)));}color.addEventListener('input',updateSwatches);updateSwatches();color.after(swatches);
-    const pairs = node('div'); form.append(pairs);
+    const table=node('table',{class:'values-table'}),caption=node('caption',{},t('keyValues')),head=node('thead'),headRow=node('tr');
+    headRow.append(node('th',{scope:'col'},t('key')),node('th',{scope:'col'},t('value')),node('th',{scope:'col','aria-label':t('actionsGroup')}));head.append(headRow);
+    const pairs = node('tbody'),valueEditors=new WeakMap();table.append(caption,head,pairs);form.append(table);
+    const count=node('p',{class:'hint',role:'status'}),empty=node('p',{class:'hint'},t('noValues'));
+    let add;
+    function clearKeyErrors(){pairs.querySelectorAll('td:first-child input[aria-invalid]').forEach(clearValidation);}
+    function updatePairs(){clearKeyErrors();count.textContent=t('valueCount',String(pairs.children.length));empty.hidden=!!pairs.children.length;if(add)add.disabled=pairs.children.length>=200;}
     function addPair(key = '', value = '') {
-      const pair = node('div', {class:'pair'});
-      const k = labeled(pair, t('key'), node('input', {required:'', placeholder:'email'})); k.value = key;
-      const v = labeled(pair, t('value'), node('textarea', {placeholder:'alex@example.com'})); v.value = value;
-      const advanced=node('details');advanced.append(node('summary',{},t('valueOptions')));transformControl(advanced,existing?.transforms?.[key]);advanced.append(node('p',{class:'hint'},t('variablesHint')));pair.append(advanced);
-      pair.append(button(t('removeValue'), () => pair.remove(), 'quiet danger')); pairs.append(pair);
+      if(pairs.children.length>=200)return;
+      const pair = node('tr', {class:'pair value-row'}),keyCell=node('td'),valueCell=node('td'),actionsCell=node('td',{class:'value-row-actions'});
+      const k = labeled(keyCell, t('key'), node('input', {required:'', maxlength:'200', placeholder:'email',spellcheck:'false'})); k.value = key;k.previousSibling.className='sr-only';
+      k.addEventListener('input',clearKeyErrors);
+      valueEditors.set(pair,valueEditor(keyCell,valueCell,value,existing?typeFor(existing,key):'string'));
+      const advanced=node('details');advanced.append(node('summary',{},t('valueOptions')));transformControl(advanced,existing?.transforms?.[key]);advanced.append(node('p',{class:'hint'},t('variablesHint')));valueCell.append(advanced);
+      actionsCell.append(iconButton(t('removeValue'),'close',()=>{const next=pair.nextElementSibling||pair.previousElementSibling;pair.remove();updatePairs();(next?.querySelector('input')||add).focus();}));
+      pair.append(keyCell,valueCell,actionsCell);pairs.append(pair);updatePairs();
     }
     if (existing) Object.entries(existing.values).forEach(([k,v]) => addPair(k,v)); else addPair();
-    form.append(button(t('addValue'), () => {addPair();pairs.lastChild.querySelector('input').focus();}, 'quiet'),organization);
+    add=button(t('addValue'), () => {addPair();pairs.lastChild.querySelector('input').focus();}, 'quiet');updatePairs();
+    const tableTools=node('div',{class:'row value-table-tools'});tableTools.append(add,count);form.append(empty,tableTools,organization);
     const actions = node('div', {class:'actions'});
     actions.classList.add('sticky-actions');actions.append(node('button', {type:'submit', class:'primary'}, t('saveEntry')),button(t('cancel'),()=>{draft=null;mode='registry';render();search.focus();}));
     if(existing?.id&&data.entries.some(e=>e.id===existing.id))organization.append(button(t('deleteEntry'),()=>deleteEntry(existing),'danger'));
     form.append(actions); main.append(form); name.focus();
     form.addEventListener('submit', async event => {
-      event.preventDefault(); const values = Object.create(null),transforms=Object.create(null);
+      event.preventDefault(); const values = Object.create(null),transforms=Object.create(null),valueTypes=Object.create(null);
       for (const pair of pairs.children) {
         const key = pair.querySelector('input').value.trim();
         if(!key||Object.hasOwn(values,key)){validation(pair.querySelector('input'),t('uniqueKeyRequired'));return;}
-        values[key] = pair.querySelector('textarea').value;
+        const control=valueEditors.get(pair);if(!control.validate())return;values[key]=control.value;valueTypes[key]=control.type;
         transforms[key]={type:pair.querySelector('[data-transform]').value,format:pair.querySelector('[data-format]').value};
       }
       if(!name.value.trim()){validation(name,t('entryNameRequired'));return;}
       let allowedSites;try{allowedSites=QuickfillRegistry.sites(sites.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean));}catch{validation(sites,t('sitesHint'));return;}
-      try {await mutate({action:'upsert', entry:{...existing, id:existing?.id || crypto.randomUUID(), name:name.value.trim(), color:color.value, values,transforms,tags:tags.value.split(',').map(tag=>tag.trim()).filter(Boolean),collection:collection.value.trim(), sites:allowedSites}});draft=null;mode='registry';back(); notify(t('entrySaved'));} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}
+      const submit=form.querySelector('[type=submit]');if(submit.disabled)return;submit.disabled=true;const request=screenVersion,unlock=lockForm(form);
+      try {await mutate({action:'upsert', entry:{...existing, id:entryId, name:name.value.trim(), color:color.value, values,types:valueTypes,transforms,tags:tags.value.split(',').map(tag=>tag.trim()).filter(Boolean),collection:collection.value.trim(), sites:allowedSites}});if(draft?.nodes.includes(form))draft=null;if(request===screenVersion&&main.contains(form)){draft=null;mode='registry';back();}notify(t('entrySaved'));} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}finally{unlock();submit.disabled=false;}
     });
   }
-  function back() {captureDraft();mode='registry';render();search.focus();}
+  function back() {captureDraft();++screenVersion;mode='registry';render();search.focus();}
   function deleteEntry(entry){
     screen('delete',t('deleteEntry'));main.append(node('p',{},t('confirmDelete',entry.name)));
     const actions=node('div',{class:'actions'});actions.append(button(t('deleteEntry'),async()=>{try{await mutate({action:'delete',id:entry.id});draft=null;back();notify(t('entryDeleted'));}catch(e){notify(t(e.message));}},'danger'),button(t('cancel'),back));main.append(actions);
@@ -314,21 +441,66 @@
     data.entries.forEach(entry=>select.append(node('option',{value:entry.id},entry.name)));select.append(node('option',{value:'__new'},t('newEntry')));
     const name=labeled(form,t('entryName'),node('input',{maxlength:'100',placeholder:t('entryNamePlaceholder')}));
     const key=labeled(form,t('associatedKey'),node('input',{required:''}));key.value=field.associatedKey||core.canonical(field.hints[0])||'value';
-    const value=labeled(form,t('value'),node('textarea'));value.value=fields.value(target);
+    const control=valueEditor(form,form,fields.value(target),inferType(target));
     const replacement=node('div',{class:'replacement'});let reviewed='';
-    const review=()=>{const isNew=select.value==='__new';name.hidden=!isNew;name.previousSibling.hidden=!isNew;name.required=isNew;const entry=data.entries.find(e=>e.id===select.value),old=entry?.values[key.value.trim()];replacement.replaceChildren();if(old!==undefined){replacement.append(node('strong',{},t('replaceValue')),node('small',{},t('beforeValue')),node('p',{class:'resolved'},old),node('small',{},t('afterValue')),node('p',{class:'resolved'},value.value));}return JSON.stringify([select.value,key.value.trim(),value.value,old]);};
-    for(const input of [select,key,value]){input.addEventListener('input',()=>{reviewed=review();});input.addEventListener('change',()=>{reviewed=review();});}reviewed=review();
+    const review=()=>{const isNew=select.value==='__new';name.hidden=!isNew;name.previousSibling.hidden=!isNew;name.required=isNew;const entry=data.entries.find(e=>e.id===select.value),old=Object.hasOwn(entry?.values||{},key.value.trim())?entry.values[key.value.trim()]:undefined;replacement.replaceChildren();if(old!==undefined){replacement.append(node('strong',{},t('replaceValue')),node('small',{},t('beforeValue')),typedBlock(old,typeFor(entry,key.value.trim())),node('small',{},t('afterValue')),typedBlock(control.value,control.type));}return JSON.stringify([select.value,key.value.trim(),control.value,control.type,old,entry?typeFor(entry,key.value.trim()):'string']);};
+    form.addEventListener('input',()=>{reviewed=review();});form.addEventListener('change',()=>{reviewed=review();});reviewed=review();
     const actions=node('div',{class:'actions sticky-actions'});actions.append(node('button',{class:'primary',type:'submit'},t('saveValue')),button(t('cancel'),back));form.append(replacement,node('p',{class:'hint'},t('saveFieldHint')),actions);main.append(form);
-    form.addEventListener('submit',async event=>{event.preventDefault();if(!key.value.trim()){validation(key,t('keyRequired'));return;}try{const next=review();if(next!==reviewed){reviewed=next;if(replacement.children.length){notify(t('reviewReplacement'));return;}}
-      let id=select.value;if(id==='__new'){if(!name.value.trim()){validation(name,t('entryNameRequired'));return;}id=crypto.randomUUID();await mutate({action:'upsert',entry:{id,name:name.value.trim(),color:'#a05dff',values:{}}});}
-      await mutate({action:'save-field',id,key:key.value.trim(),value:value.value,signature:field.signature});back();notify(t('fieldSaved'));
-    }catch(e){notify(t(e.message));}});
+    form.addEventListener('submit',async event=>{event.preventDefault();if(!key.value.trim()){validation(key,t('keyRequired'));return;}if(!control.validate())return;
+      const submit=form.querySelector('[type=submit]');if(submit.disabled)return;const request=screenVersion;let unlock=()=>{};
+      try{const next=review();if(next!==reviewed){reviewed=next;if(replacement.children.length){notify(t('reviewReplacement'));return;}}
+        const create=select.value==='__new';if(create&&!name.value.trim()){validation(name,t('entryNameRequired'));return;}
+        submit.disabled=true;unlock=lockForm(form);await mutate({action:'save-fields',id:create?core.uuid():select.value,create,name:name.value.trim(),fields:[{key:key.value.trim(),value:control.value,valueType:control.type,signature:field.signature}]});if(request===screenVersion)back();notify(t('fieldSaved'));
+      }catch(e){notify(t(e.message));}finally{unlock();submit.disabled=false;}
+    });
+  }
+  function saveAllFields(){
+    const selectedForm=target?.isConnected?(target.form||target.closest?.('form')):null;
+    const candidates=fields.collect().filter(el=>(!selectedForm||el.form===selectedForm||selectedForm.contains(el))&&el.type!=='password'&&!excluded(el));
+    toggle(true);screen('capture',t('saveAllFields'));
+    main.append(node('p',{class:'hint'},t(selectedForm?'captureFormHint':'capturePageHint')));
+    if(!candidates.length){main.append(node('p',{},t('noFields')),button(t('back'),back));return;}
+    const form=node('form',{class:'capture-form'}),select=labeled(form,t('saveToEntry'),node('select',{'data-capture-entry':''}));
+    select.append(node('option',{value:'__new'},t('newEntry')));data.entries.forEach(entry=>select.append(node('option',{value:entry.id},entry.name)));
+    const name=labeled(form,t('entryName'),node('input',{maxlength:'100',required:'',placeholder:t('entryNamePlaceholder')}));name.value=(selectedForm?.getAttribute('aria-label')||document.title||t('newEntry')).slice(0,100);
+    const count=node('p',{class:'preview-summary',role:'status'}),list=node('div',{class:'capture-fields'});form.append(count,list);
+    const captured=[],used=new Set(),newId=core.uuid();let reviewed='',submit,saving=false;
+    for(const el of candidates){
+      const field=fields.describe(el,data.associations),row=node('section',{class:'pair capture-field','data-capture-field':''});
+      const include=node('input',{type:'checkbox','data-capture-include':''});include.checked=true;const title=node('label',{class:'check'});title.append(include,document.createTextNode(fieldLabel(el)));row.append(title);
+      const key=labeled(row,t('key'),node('input',{'data-capture-key':'',maxlength:'200',required:''}));
+      const base=(field.associatedKey||el.name||el.id||core.canonical(field.hints[0])||'value').slice(0,190);let next=base,index=2;while(used.has(next))next=base+'_'+index++;used.add(next);key.value=next;
+      const control=valueEditor(row,row,fields.value(el),inferType(el)),replacement=node('div',{class:'replacement'});row.append(replacement);list.append(row);captured.push({row,include,key,control,replacement,signature:field.signature});
+      include.addEventListener('change',()=>{key.disabled=!include.checked;key.required=include.checked;control.input.disabled=!include.checked;control.select.disabled=!include.checked;reviewed=review();});
+    }
+    function review(){
+      const create=select.value==='__new',entry=data.entries.find(item=>item.id===select.value);name.hidden=!create;name.previousSibling.hidden=!create;name.required=create;
+      let total=0,replaced=0;const changes=[];
+      for(const item of captured){
+        const key=item.key.value.trim(),old=Object.hasOwn(entry?.values||{},key)?entry.values[key]:undefined;item.replacement.replaceChildren();
+        if(!item.include.checked)continue;total++;changes.push([key,item.control.value,item.control.type,old,entry?typeFor(entry,key):'string']);
+        if(old!==undefined){replaced++;item.replacement.append(node('small',{},t('beforeValue')),typedBlock(old,typeFor(entry,key)));}
+      }
+      count.textContent=t('captureSummary',[String(total),String(replaced)]);if(submit)submit.disabled=saving||total===0;return JSON.stringify([select.value,changes]);
+    }
+    form.addEventListener('input',()=>{captured.forEach(item=>clearValidation(item.key));reviewed=review();});form.addEventListener('change',()=>{reviewed=review();});
+    submit=node('button',{type:'submit',class:'primary'},t('saveSelectedFields'));const actions=node('div',{class:'actions sticky-actions'});actions.append(submit,button(t('cancel'),back));form.append(actions);main.append(form);reviewed=review();
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();if(saving||submit.disabled)return;const chosen=captured.filter(item=>item.include.checked),keys=new Set();
+      if(chosen.length>200){notify(t('maxValues'));return;}
+      for(const item of chosen){const key=item.key.value.trim();if(!key||keys.has(key)){validation(item.key,t('uniqueKeyRequired'));return;}keys.add(key);if(!item.control.validate())return;}
+      const create=select.value==='__new';if(create&&!name.value.trim()){validation(name,t('entryNameRequired'));return;}
+      const next=review();if(next!==reviewed){reviewed=next;notify(t('reviewReplacement'));return;}
+      saving=true;submit.disabled=true;const request=screenVersion,unlock=lockForm(form);
+      try{await mutate({action:'save-fields',id:create?newId:select.value,create,name:name.value.trim(),fields:chosen.map(item=>({key:item.key.value.trim(),value:item.control.value,valueType:item.control.type,signature:item.signature}))});if(request===screenVersion)back();notify(t('fieldsSaved',String(chosen.length)));}
+      catch(error){notify(t(error.message));}finally{unlock();saving=false;submit.disabled=false;}
+    });
   }
   async function previewForm(entry) {
-    const selectedForm=target?.form;
-    screen('resolving',t('resolving'));
-    let context;try{context=await contextFor(entry);}catch(e){back();notify(t(e.message));return;}
-    if(!visible||mode!=='resolving')return;
+    const selectedForm=target?.form||target?.closest?.('form');
+    const request=screen('resolving',t('resolving'));
+    let context;try{context=await contextFor(entry);}catch(e){if(request===screenVersion){back();notify(t(e.message));}return;}
+    if(!visible||request!==screenVersion)return;
     screen('preview',t('formPreview'));main.append(node('p',{},entry.name),node('p',{class:'hint'},t('previewHint')));
     const emptyLabel=node('label',{class:'check'}),emptyOnly=node('input',{type:'checkbox','data-empty-only':''});emptyOnly.checked=true;
     emptyLabel.append(emptyOnly,document.createTextNode(t('emptyOnly')));main.append(emptyLabel);
@@ -340,8 +512,8 @@
     const summary=node('div',{class:'preview-summary',role:'status'}),attentionLabel=node('label',{class:'check'}),attention=node('input',{type:'checkbox'});attentionLabel.append(attention,document.createTextNode(t('needsAttention')));main.append(summary,attentionLabel);
     const rows=node('div',{class:'preview-rows'});main.append(rows);
     const plan=[];let apply;
-    function summarize(){let ready=0,issues=0,skipped=0;for(const item of plan){const skip=emptyOnly.checked&&fields.value(item.el)!=='';item.attention=!skip&&(!!item.error||(item.select.value===''&&item.ambiguous&&!item.touched));if(item.attention)issues++;else if(skip||item.select.value==='')skipped++;else ready++;item.row.hidden=attention.checked&&!item.attention;item.row.style.order=item.attention?'0':'1';item.row.classList.toggle('ambiguous',item.attention);const hint=item.row.querySelector('.ambiguity-hint');if(hint)hint.hidden=!(item.select.value===''&&item.ambiguous&&!item.touched);}
-      summary.replaceChildren(...t('previewSummary',[String(ready),String(issues),String(skipped)]).split(' · ').map(text=>node('span',{},text)));if(apply){apply.textContent=ready===1?t('fillOneField'):t('fillFields',String(ready));apply.disabled=!ready;}}
+    function summarize(){let ready=0,issues=0,skipped=0;for(const item of plan){const skip=emptyOnly.checked&&!fields.empty(item.el);item.attention=!skip&&(!!item.error||(item.select.value===''&&item.ambiguous&&!item.touched));if(item.attention)issues++;else if(skip||item.select.value==='')skipped++;else ready++;item.row.hidden=attention.checked&&!item.attention;item.row.style.order=item.attention?'0':'1';item.row.classList.toggle('ambiguous',item.attention);const hint=item.row.querySelector('.ambiguity-hint');if(hint)hint.hidden=!(item.select.value===''&&item.ambiguous&&!item.touched);}
+      summary.replaceChildren(...t('previewSummary',[String(ready),String(issues),String(skipped)]).split(' · ').map(text=>node('span',{},text)));if(apply){apply.textContent=ready===1?t('fillOneField'):t('fillFields',String(ready));apply.disabled=!ready;addButtonIcon(apply,t('applyForm'));}}
     attention.addEventListener('change',summarize);
     for(const el of candidates){
       const field=fields.describe(el,data.associations),rule=matchedRules.get(el);
@@ -360,9 +532,9 @@
         item.error=null;item.value=null;row.classList.remove('will-skip');
         if(select.value===''){resolved.textContent=t('skipField');explanation.textContent=item.ambiguous&&!item.touched?t('ambiguousMatch'):'';summarize();return;}
         const key=keys[Number(select.value)];
-        try{item.value=power.resolve(entry.values[key],context,transform.get());if(!core.compatible(field,item.value))item.error='incompatibleValue';}catch(e){item.error=e.message;}
-        resolved.textContent=item.value??'';
-        if(emptyOnly.checked&&fields.value(el)!==''){row.classList.add('will-skip');explanation.textContent=t('nonemptySkipped');}
+        try{item.value=power.resolve(entry.values[key],context,transform.get());item.error=types.validate(item.value,typeFor(entry,key),{allowVariables:false});if(!item.error&&!core.compatible(field,item.value))item.error='incompatibleValue';}catch(e){item.error=e.message;}
+        resolved.replaceChildren(typedValue(item.value??'',typeFor(entry,key)));
+        if(emptyOnly.checked&&!fields.empty(el)){row.classList.add('will-skip');explanation.textContent=t('nonemptySkipped');}
         else explanation.textContent=item.error?t(item.error):rule?t('savedMapping'):matches.find(m=>m.key===key)?reason(matches.find(m=>m.key===key)):t('manualMapping');summarize();
       };
       select.addEventListener('change',()=>{item.touched=true;const key=keys[Number(select.value)];const choice=entry.transforms?.[key]||{type:'none',format:''};transform.select.value=choice.type;transform.format.value=choice.format||'';transform.select.dispatchEvent(new Event('change'));update();});
@@ -377,10 +549,10 @@
       const states=[],failures=[];let skipped=0;
       for(const item of plan){
         if(item.select.value===''){skipped++;continue;}
-        if(emptyOnly.checked&&fields.value(item.el)!==''){skipped++;continue;}
+        if(emptyOnly.checked&&!fields.empty(item.el)){skipped++;continue;}
         if(item.error){failures.push(t(item.error));skipped++;continue;}
         const current=fields.snapshot(item.el);
-        if(!item.el.isConnected||current.value!==item.before.value||current.html!==item.before.html||JSON.stringify(current.selected)!==JSON.stringify(item.before.selected)){failures.push(t(item.el.isConnected?'fieldChanged':'fieldRemoved'));skipped++;continue;}
+        if(!item.el.isConnected||!fields.matchesSnapshot(item.el,item.before)){failures.push(t(item.el.isConnected?'fieldChanged':'fieldRemoved'));skipped++;continue;}
         if(excluded(item.el)){failures.push(t('fieldExcluded'));skipped++;continue;}
         const result=fields.writeResult(item.el,item.value);
         if(result.ok){current.after=fields.snapshot(item.el);states.push(current);}else{skipped++;failures.push(t(result.code));}
@@ -405,23 +577,35 @@
   }
   async function reloadLanguage() {
     const request=++languageRequest;
-    const next=await chrome.runtime.sendMessage({type:'bootstrap'});
+    const next=await bootstrap();
     if(request!==languageRequest)return;
-    boot=next; data=boot.data;surface.escape();surface.hide(true);
-    const wasVisible=visible; host?.remove();host=null;mode='registry';query='';
-    if(wasVisible) toggle(true);
+    boot=next; data=boot.data;QuickfillControls.close();surface.escape();surface.hide(true);
+    captureDraft();++screenVersion;const wasVisible=visible,wasSettings=mode==='settings'; host?.remove();host=null;mode='registry';query='';
+    if(wasVisible){toggle(true);if(standalone&&wasSettings)settings();}
   }
   function settings() {
     screen('settings',t('settings'));
     const general=node('section',{class:'settings-section'});general.append(node('h2',{},t('general')));
     const select=labeled(general,t('language'),node('select'));[['auto',t('automatic')],['en','English'],['ru','Русский']].forEach(([value,label])=>select.append(node('option',{value},label)));select.value=data.language||'auto';
-    general.append(node('p',{class:'hint'},t('languageHint')),button(t('walkthrough'),walkthrough,'quiet'));
-    const storage=node('section',{class:'settings-section'});storage.append(node('h2',{},t('dataSettings')),button(t('importData'),importData),button(t('exportData'),exportData),node('p',{class:'hint'},t('backupHint')));
-    main.append(general,websiteSettings(),storage);
+    general.append(node('p',{class:'hint'},t('languageHint')));
+    const suggestions=labeled(general,t('suggestionBehavior'),node('select',{'data-global-suggestions':''}));
+    ['button','off'].forEach(value=>suggestions.append(node('option',{value},t('suggestions_'+value))));suggestions.value=globalSuggestions();
+    general.append(node('p',{class:'hint'},t('globalSuggestionsHint')));
+    if(!standalone){const newTab=button(t('openInTab'),openInTab,'quiet'),icon=QuickfillIcon('external');icon.classList.add('button-icon');newTab.prepend(icon);newTab.dataset.action='openInTab';general.append(newTab,button(t('walkthrough'),walkthrough,'quiet'));}
+    suggestions.addEventListener('change',async()=>{
+      suggestions.disabled=true;
+      try{await mutate({action:'global-preferences',preferences:{suggestions:suggestions.value}});updatePreferences();notify(t('preferencesSaved'));}
+      catch(error){suggestions.value=globalSuggestions();notify(t(error.message));}
+      finally{suggestions.disabled=false;}
+    });
+    const storage=node('section',{class:'settings-section'}),storageHeader=node('div',{class:'section-heading'}),dataTools=node('div',{class:'data-tools',role:'group','aria-label':t('dataSettings')});
+    const importButton=iconButton(t('importData'),'import',importData),exportButton=iconButton(t('exportData'),'export',exportData);importButton.dataset.action='importData';exportButton.dataset.action='exportData';dataTools.append(importButton,exportButton);
+    storageHeader.append(node('h2',{},t('dataSettings')),dataTools);storage.append(storageHeader,node('p',{class:'hint'},t('backupHint')));
+    main.append(general,standalone?savedWebsiteSettings():websiteSettings(),storage);
     select.addEventListener('change',async()=>{try{await mutate({action:'language',language:select.value});await reloadLanguage();}catch(e){notify(t(e.message));}});
   }
   function exportData() {
-    const bundle={version:1,entries:data.entries,associations:data.associations,mappings:data.mappings||{},preferences:data.preferences||{}};
+    const bundle={version:1,entries:data.entries,associations:data.associations,mappings:data.mappings||{},preferences:data.preferences||{},globalPreferences:QuickfillRegistry.globalSettings(data.globalPreferences)};
     const url=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'}));
     const link=node('a',{href:url,download:'quickfill-backup.json'});shadow.append(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),10000);notify(t('exported'));
@@ -464,12 +648,14 @@
   }
 
   const pageField = event => event.composedPath().find(editable);
-  document.addEventListener('focusin', event => {if (event.composedPath().includes(host)||surface.inside(event)) return; const field = pageField(event); if (field) {target = field;updateDestination();surface.track(excluded(field)?null:field);} else surface.hide();}, true);
-  document.addEventListener('contextmenu', event => {if (!event.composedPath().includes(host)&&!surface.inside(event)) target = event.composedPath().find(fields.supported) || null;}, true);
+  document.addEventListener('focusin', event => {if (standalone||!isCurrent()||event.composedPath().includes(host)||surface.inside(event)) return; const field = pageField(event); if (field) {target = field;updateDestination();surface.track(excluded(field)?null:field);} else surface.hide();}, true);
+  document.addEventListener('contextmenu', event => {if (!standalone&&isCurrent()&&!event.composedPath().includes(host)&&!surface.inside(event)) target = event.composedPath().find(fields.supported) || null;}, true);
   document.addEventListener('dragover', event => {
+    if(standalone||!isCurrent())return;
     if (pageField(event) && event.dataTransfer.types.includes('application/x-quickfill')) {event.preventDefault(); event.dataTransfer.dropEffect = 'copy';}
   }, true);
   document.addEventListener('drop', event => {
+    if(standalone||!isCurrent())return;
     const field = pageField(event);
     if (!field || !event.dataTransfer.types.includes('application/x-quickfill')) return;
     event.preventDefault(); event.stopPropagation(); target = field;
@@ -478,12 +664,19 @@
     fill(raw);
   }, true);
   document.addEventListener('keydown', event => {
+    if(!isCurrent())return;
     // Commands API owns Ctrl+B; avoid a second toggle from a page key handler.
+    if(QuickfillControls.handleKeydown(event))return;
     if(surface.inside(event))return;
     if(event.composedPath().includes(host)){
       const open=shadow.querySelector('.menu-list:not([hidden])');if(open){if(event.key==='Escape'){event.preventDefault();event.stopPropagation();open.hidden=true;open.previousSibling.setAttribute('aria-expanded','false');open.previousSibling.focus();return;}if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();const options=[...open.querySelectorAll('button')],at=options.indexOf(shadow.activeElement);options[(at+(event.key==='ArrowDown'?1:-1)+options.length)%options.length].focus();return;}}
     }
-    if (event.key === 'Escape') {surface.escape();if(visible)toggle(false);return;}
+    if (event.key === 'Escape') {surface.escape();if(visible){event.preventDefault();if(standalone){if(mode!=='registry')back();}else if(fullscreen)setFullscreen(false);else toggle(false);}return;}
+    if(!standalone&&visible&&fullscreen&&event.key==='Tab'){
+      const controls=[...shadow.querySelectorAll('button,input,textarea,select,summary,[tabindex="0"]')].filter(el=>!el.disabled&&el.tabIndex>=0&&el.checkVisibility());
+      const first=controls[0],last=controls.at(-1),active=shadow.activeElement;
+      if(!controls.includes(active)||(event.shiftKey&&active===first)||(!event.shiftKey&&active===last)){event.preventDefault();(event.shiftKey?last:first)?.focus();}return;
+    }
     if (!visible || !event.composedPath().includes(host) || !['registry','fill'].includes(mode)) return;
     const active = shadow.activeElement;
     const values = Array.from(main.querySelectorAll('.value'));
@@ -492,11 +685,16 @@
       values[index<0?(event.key==='ArrowDown'?0:values.length-1):(index+(event.key==='ArrowDown'?1:-1)+values.length)%values.length].focus();
     } else if (event.key === 'Enter' && values.length && (active === search || values.includes(active))) {event.preventDefault(); (active === search ? values[0] : active).click();}
   }, true);
-  chrome.runtime.onMessage.addListener(message => {
+  chrome.runtime.onMessage.addListener((message,sender,respond) => {
+    if(standalone&&message.type==='manager-command'&&message.tabId===managerTabId){
+      if(message.command==='palette')surface.palette();
+      if(message.command==='toggle')toggle(true);
+      respond({ok:true});return;
+    }
     if (message.type === 'palette') surface.palette();
     if (message.type === 'toggle') toggle();
-    if (message.type === 'fill') {mode = 'fill'; query = ''; if (search) search.value = ''; toggle(true);}
-    if (message.type === 'save') saveField();
+    if (!standalone&&message.type === 'fill') {captureDraft();mode = 'fill'; query = ''; if (search) search.value = ''; toggle(true);}
+    if (!standalone&&message.type === 'save') saveField();
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.registry) return;
@@ -504,4 +702,9 @@
     const changedLanguage = (boot.data.language || 'auto') !== (next.language || 'auto'); data = next;
     if (changedLanguage) reloadLanguage(); else {updatePreferences();render();}
   });
+  // Page frameworks can replace root children without reloading the content script.
+  new MutationObserver(()=>{if(isCurrent()&&visible&&host&&!host.isConnected)mount();}).observe(document,{childList:true,subtree:true});
+  if(standalone){toggle(true);settings();}
 })();
+globalThis.QuickfillReady.catch(error=>{console.error('Quickfill could not initialize:',error);globalThis.QuickfillReady=null;});
+}

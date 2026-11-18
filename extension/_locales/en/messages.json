@@ -749,5 +749,167 @@
   },
   "paletteKeys": {
     "message": "↑ ↓ Choose · Enter Run · Esc Close"
+  },
+  "launcherMenu": {
+    "message": "Quickfill actions"
+  },
+  "launcherHint": {
+    "message": "Quickfill suggestions · Right-click for more actions"
+  },
+  "openSidebar": {
+    "message": "Open sidebar"
+  },
+  "enterFullscreen": {
+    "message": "Expand to full window"
+  },
+  "exitFullscreen": {
+    "message": "Return to sidebar"
+  },
+  "keyValues": {
+    "message": "Keys and values"
+  },
+  "valueType": {
+    "message": "Value type"
+  },
+  "chooseBoolean": {
+    "message": "Choose…"
+  },
+  "booleanTrue": {
+    "message": "true · Yes"
+  },
+  "booleanFalse": {
+    "message": "false · No"
+  },
+  "chooseDate": {
+    "message": "Choose a date"
+  },
+  "previousMonth": {
+    "message": "Previous month"
+  },
+  "nextMonth": {
+    "message": "Next month"
+  },
+  "clearValue": {
+    "message": "Clear"
+  },
+  "today": {
+    "message": "Today"
+  },
+  "time": {
+    "message": "Time"
+  },
+  "hour": {
+    "message": "Hour"
+  },
+  "minute": {
+    "message": "Minute"
+  },
+  "saveAllFields": {
+    "message": "Save all field values…"
+  },
+  "saveSelectedFields": {
+    "message": "Save selected fields"
+  },
+  "captureFormHint": {
+    "message": "Review the values captured from the focused form. Choose an entry, edit keys or types, and uncheck fields you do not want to save. Passwords, excluded, hidden, and read-only fields are skipped."
+  },
+  "capturePageHint": {
+    "message": "Review the values captured from this page. Choose an entry, edit keys or types, and uncheck fields you do not want to save. Passwords, excluded, hidden, and read-only fields are skipped."
+  },
+  "maxValues": {
+    "message": "Select up to 200 fields per entry."
+  },
+  "type_string": {
+    "message": "String"
+  },
+  "type_bool": {
+    "message": "Boolean"
+  },
+  "type_number": {
+    "message": "Number"
+  },
+  "type_date": {
+    "message": "Date"
+  },
+  "type_datetime": {
+    "message": "Date & time"
+  },
+  "type_json": {
+    "message": "JSON"
+  },
+  "type_xml": {
+    "message": "XML"
+  },
+  "typeInvalid_bool": {
+    "message": "Use true or false for a boolean value."
+  },
+  "typeInvalid_number": {
+    "message": "Enter a finite number, such as 42 or 3.14."
+  },
+  "typeInvalid_date": {
+    "message": "Enter a valid date as YYYY-MM-DD."
+  },
+  "typeInvalid_datetime": {
+    "message": "Enter a valid local date and time as YYYY-MM-DDTHH:mm."
+  },
+  "typeInvalid_json": {
+    "message": "Enter valid JSON. Strings and property names need double quotes."
+  },
+  "typeInvalid_xml": {
+    "message": "Enter valid XML with one root element. DTDs and custom entities are not supported."
+  },
+  "captureSummary": {
+    "message": "Selected: $A$ · Existing keys to replace: $B$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "fieldsSaved": {
+    "message": "Saved $A$ field values.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDate": {
+    "message": "Done"
+  },
+  "globalSuggestionsHint": {
+    "message": "Default for all websites. A website can override this setting below. Changes apply to open tabs immediately."
+  },
+  "websiteSuggestionBehavior": {
+    "message": "Inline suggestions on this website"
+  },
+  "suggestions_inherit": {
+    "message": "Use global setting ($MODE$)",
+    "placeholders": {
+      "mode": {
+        "content": "$1"
+      }
+    }
+  },
+  "openInTab": {
+    "message": "Open in new tab"
+  },
+  "manageEntries": {
+    "message": "Saved entries"
+  },
+  "managerTitle": {
+    "message": "Quickfill settings"
+  },
+  "savedWebsites": {
+    "message": "Saved websites"
+  },
+  "savedWebsitesHint": {
+    "message": "Website preferences appear here after you save them from Quickfill on a website."
+  },
+  "sidebarUnavailable": {
+    "message": "Quickfill could not open on this page. Refresh the page and try again. Browser-internal and restricted pages are not supported."
   }
 }

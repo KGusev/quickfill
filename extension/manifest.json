@@ -5,10 +5,16 @@
   "description": "__MSG_extensionDescription__",
   "permissions": [
     "storage",
-    "contextMenus"
+    "contextMenus",
+    "activeTab",
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "action": {
     "default_title": "__MSG_toggleSidebar__",
@@ -42,9 +48,11 @@
       "js": [
         "core.js",
         "power.js",
+        "types.js",
         "registry.js",
         "fields.js",
         "styles.js",
+        "controls.js",
         "surface.js",
         "content.js"
       ],

@@ -19,11 +19,60 @@ test('rejects invalid imports atomically including duplicate IDs and oversized v
  assert.throws(()=>registry.sites(['https://example.com/path']));
  assert.deepEqual(registry.sites(['https://example.com/','https://example.com']),['https://example.com']);
 });
+test('merge retains transformations for retained values and replaces imported value options',()=>{
+ const current={entries:[{...a,values:{email:'old@example.com',phone:'123',name:'Alex'},transforms:{email:{type:'upper'},phone:{type:'digits'},name:{type:'lower'}}}],associations:{}};
+ const incoming={version:1,entries:[{...a,values:{email:'new@example.com',name:'Sam'},transforms:{name:{type:'upper'}}}]};
+ const merged=registry.merge(current,incoming,'merge').entries[0];
+ assert.deepEqual(merged.values,{email:'new@example.com',phone:'123',name:'Sam'});
+ assert.deepEqual(merged.transforms,{phone:{type:'digits',format:''},name:{type:'upper',format:''}});
+ assert.equal(current.entries[0].transforms.email.type,'upper');
+ assert.deepEqual(registry.bundle({version:1,entries:[merged]}).entries,[merged]);
+});
+test('merge enforces the per-entry key limit atomically after combining values',()=>{
+ const values=Object.fromEntries(Array.from({length:200},(_,i)=>['key'+i,'saved']));
+ const current={entries:[{...a,values}],associations:{}};
+ const before=structuredClone(current);
+ const incoming={version:1,entries:[{...a,values:{extra:'new'}}]};
+ assert.throws(()=>registry.merge(current,incoming,'merge'),/invalidImport/);
+ assert.deepEqual(current,before);
+ assert.equal(Object.keys(registry.merge(current,{version:1,entries:[{...a,values:{key0:'updated'}}]},'merge').entries[0].values).length,200);
+ assert.deepEqual(registry.merge(current,incoming,'replace').entries[0].values,{extra:'new'});
+});
 test('prototype-looking keys remain plain data',()=>{
  const values=JSON.parse('{"__proto__":"saved","constructor":"value"}');
  const result=registry.merge(data,{version:1,entries:[{...a,values}]},'merge');
  assert.equal(result.entries[0].values.__proto__,'saved');
  assert.equal({}.saved,undefined);
+});
+test('typed entries preserve legacy string values, validate types, and round-trip through backups',()=>{
+ const original={...a,values:{active:'false',count:'12',created:'2024-02-29',config:'{"ok":true}',markup:'<root/>'},types:{active:'bool',count:'number',created:'date',config:'json',markup:'xml'}};
+ const cleaned=registry.entry(original);
+ assert.deepEqual(cleaned.types,original.types);
+ assert.deepEqual(cleaned.values,original.values);
+ assert.deepEqual(registry.bundle({version:1,entries:[cleaned]}).entries[0],cleaned);
+ assert.deepEqual(registry.entry(a).types,{});
+ for(const [value,type] of [['abc','number'],['2025-02-29','date'],['yes','bool'],['{','json'],['<open>','xml'],['anything','script']]) {
+   assert.throws(()=>registry.entry({...a,values:{value},types:{value:type}}));
+ }
+ assert.throws(()=>registry.entry({...a,types:[]}));
+});
+test('merging imported values replaces their type and retains types on untouched keys',()=>{
+ const existing={...a,values:{active:'true',count:'3',notes:'{}'},types:{active:'bool',count:'number',notes:'json'}};
+ const incoming={...a,values:{count:'now text',notes:'<root/>',newDate:'2026-11-18'},types:{notes:'xml',newDate:'date'}};
+ const merged=registry.merge({entries:[existing]},{version:1,entries:[incoming]},'merge').entries[0];
+ assert.deepEqual(merged.types,{active:'bool',notes:'xml',newDate:'date'});
+ assert.equal(merged.values.count,'now text');
+ assert.equal(existing.types.count,'number');
+ assert.deepEqual(registry.merge({entries:[existing]},{version:1,entries:[incoming]},'skip').entries[0],existing);
+ assert.deepEqual(registry.merge({entries:[existing]},{version:1,entries:[incoming]},'replace').entries[0].types,incoming.types);
+});
+test('prototype-looking type keys are preserved as ordinary entry data',()=>{
+ const item={...a,values:JSON.parse('{"__proto__":"true","constructor":"42"}'),types:JSON.parse('{"__proto__":"bool","constructor":"number"}')};
+ const clean=registry.entry(item);
+ assert.equal(clean.types.__proto__,'bool');assert.equal(clean.types.constructor,'number');
+ assert.equal(Object.hasOwn(clean.types,'__proto__'),true);
+ assert.equal(Object.getPrototypeOf(clean.types),Object.prototype);
+ assert.deepEqual(registry.entry({...a,values:{constructor:'anything'}}).types,{});
 });
 test('Russian hints match English keys and give an explanation',()=>{
  const matches=core.suggestions([a],{type:'email',hints:['Электронная почта']});
@@ -43,4 +92,44 @@ test('select matching excludes disabled options and message substitutions are li
  assert.equal(core.compatible(field,'russia'),true);assert.equal(core.compatible(field,'no'),false);
  const en=require('../extension/_locales/en/messages.json');
  assert.equal(core.formatMessage(en,'confirmDelete','<b>$1</b>'),'Delete “<b>$1</b>” and its saved values?');
+});
+test('global suggestions apply to inheriting sites while explicit website choices retain precedence',()=>{
+ assert.deepEqual(registry.globalSettings(),{suggestions:'button'});
+ assert.equal(registry.settings().suggestions,'inherit');
+ assert.equal(registry.effectiveSettings().suggestions,'button');
+ assert.equal(registry.effectiveSettings({}, {suggestions:'off'}).suggestions,'off');
+ assert.equal(registry.effectiveSettings({suggestions:'inherit'}, {suggestions:'off'}).suggestions,'off');
+ assert.equal(registry.effectiveSettings({suggestions:'button'}, {suggestions:'off'}).suggestions,'button');
+ assert.equal(registry.effectiveSettings({suggestions:'off'}, {suggestions:'button'}).suggestions,'off');
+ assert.equal(registry.effectiveSettings({suggestions:'auto'}, {suggestions:'off'}).suggestions,'button');
+ const site={width:520,preferredEntry:'a',excluded:['field']};
+ assert.deepEqual(registry.effectiveSettings(site,{suggestions:'off'}),{...site,suggestions:'off'});
+ assert.deepEqual(site,{width:520,preferredEntry:'a',excluded:['field']});
+ for(const value of [null,[],{suggestions:'inherit'},{suggestions:'auto'},{suggestions:true},{suggestions:'always'}])assert.throws(()=>registry.globalSettings(value),/invalidImport/);
+ assert.throws(()=>registry.settings({suggestions:'always'}),/invalidImport/);
+});
+test('backups preserve global defaults and website inheritance without adding globals to old backups',()=>{
+ const input={version:1,entries:[a],globalPreferences:{suggestions:'off'},preferences:{'https://example.com':{width:520,suggestions:'inherit'},'https://legacy.example':{suggestions:'auto'}}};
+ const clean=registry.bundle(input);
+ assert.deepEqual(clean.globalPreferences,{suggestions:'off'});
+ assert.equal(clean.preferences['https://example.com'].suggestions,'inherit');
+ assert.equal(clean.preferences['https://legacy.example'].suggestions,'button');
+ assert.deepEqual(registry.bundle(JSON.parse(JSON.stringify(clean))),clean);
+ assert.equal(Object.hasOwn(registry.bundle({version:1,entries:[]}),'globalPreferences'),false);
+ const legacy=registry.bundle({version:1,entries:[],preferences:{'https://example.com':{width:480}}});
+ assert.equal(legacy.preferences['https://example.com'].suggestions,'inherit');
+ assert.throws(()=>registry.bundle({...input,globalPreferences:null}),/invalidImport/);
+ assert.throws(()=>registry.bundle({...input,globalPreferences:{suggestions:'inherit'}}),/invalidImport/);
+});
+test('global preference imports obey duplicate strategy and omitted defaults never reset current settings',()=>{
+ const current={entries:[],globalPreferences:{suggestions:'off'},preferences:{site:{suggestions:'inherit'}}};
+ const before=structuredClone(current),incoming={version:1,entries:[],globalPreferences:{suggestions:'button'}};
+ for(const strategy of ['merge','replace'])assert.deepEqual(registry.merge(current,incoming,strategy).globalPreferences,{suggestions:'button'});
+ assert.deepEqual(registry.merge(current,incoming,'skip').globalPreferences,{suggestions:'off'});
+ for(const strategy of ['merge','replace','skip']){
+   assert.deepEqual(registry.merge(current,{version:1,entries:[]},strategy).globalPreferences,{suggestions:'off'});
+   assert.deepEqual(registry.merge({entries:[]},incoming,strategy).globalPreferences,{suggestions:'button'});
+ }
+ assert.deepEqual(current,before);
+ assert.equal(Object.hasOwn(registry.merge({entries:[]},{version:1,entries:[]},'merge'),'globalPreferences'),false);
 });

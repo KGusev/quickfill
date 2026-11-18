@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quickfill typed values and controls</title>
+<style>
+  :root{font:15px/1.5 system-ui,sans-serif;color:#253047;background:#f8f9fc}
+  body{max-width:850px;margin:32px auto;padding:0 24px}h1{font-size:26px}h2{font-size:18px}p{color:#59677c}
+  form{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}fieldset{border:1px solid #e0e3ed;border-radius:12px;padding:18px;background:white}legend{font-weight:650}
+  label{display:block;margin:12px 0 5px}input:not([type=checkbox]):not([type=radio]),select,textarea{box-sizing:border-box;width:100%;min-height:40px;padding:9px;border:1px solid #cbd1df;border-radius:8px;font:inherit;color:inherit;background:white}textarea{min-height:90px;resize:vertical}
+  input[type=checkbox],input[type=radio]{accent-color:#8c4bde;width:17px;height:17px;vertical-align:middle;margin-right:6px}.choice{font-weight:400}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;background:#f2eaff;border-radius:12px;max-height:180px;overflow:auto}button,a{color:#7135b7}button{font:inherit;padding:8px 12px;border:1px solid #ddd2ee;border-radius:8px;background:white;cursor:pointer}.actions{margin:20px 0;display:flex;gap:8px;flex-wrap:wrap}
+</style>
+<h1>Typed values and form controls</h1>
+<p>Open Quickfill with Ctrl+B. Save this form from the command palette, then review and fill it using the saved entry. Checkboxes store true/false; radio groups and comboboxes store the selected option’s value. Undo should restore each control.</p>
+<form id="control-form" autocomplete="off">
+  <fieldset><legend>Checkboxes</legend>
+    <label class="choice"><input id="subscribed" name="subscribed" type="checkbox" checked>Subscribe to updates</label>
+    <label class="choice"><input id="terms" name="terms" type="checkbox">Accept terms</label>
+    <label class="choice"><input id="disabled-check" name="disabled_check" type="checkbox" disabled checked>Disabled checkbox (skip)</label>
+  </fieldset>
+  <fieldset><legend>Radio buttons</legend>
+    <label class="choice"><input id="plan-basic" name="plan" type="radio" value="basic" checked>Basic</label>
+    <label class="choice"><input id="plan-pro" name="plan" type="radio" value="pro">Professional</label>
+    <label class="choice"><input id="plan-disabled" name="plan" type="radio" value="enterprise" disabled>Enterprise (disabled)</label>
+  </fieldset>
+  <fieldset><legend>Comboboxes</legend>
+    <label for="country">Country (select)</label><select id="country" name="country"><option value="">Choose a country</option><option value="us">United States</option><option value="de" selected>Germany</option><option value="jp">Japan</option><option value="disabled" disabled>Unavailable country</option></select>
+    <label for="city">City (editable combobox)</label><input id="city" name="city" list="city-options" value="Berlin"><datalist id="city-options"><option value="Berlin"><option value="Tokyo"><option value="New York"></datalist>
+  </fieldset>
+  <fieldset><legend>Numbers and dates</legend>
+    <label for="quantity">Quantity</label><input id="quantity" name="quantity" type="number" step="any" value="12.5">
+    <label for="birthday">Date</label><input id="birthday" name="birthday" type="date" value="2026-11-18">
+    <label for="appointment">Date and time</label><input id="appointment" name="appointment" type="datetime-local" value="2026-11-18T14:30">
+  </fieldset>
+  <fieldset><legend>Structured values</legend>
+    <label for="json-value">JSON</label><textarea id="json-value" name="json_value">{"enabled":true,"count":3,"tags":["demo"]}</textarea>
+    <label for="xml-value">XML</label><textarea id="xml-value" name="xml_value">&lt;profile active="true"&gt;&lt;name&gt;Alex&lt;/name&gt;&lt;/profile&gt;</textarea>
+  </fieldset>
+  <fieldset><legend>Text and skipped fields</legend>
+    <label for="display-name">Display name</label><input id="display-name" name="display_name" value="Alex Example">
+    <label for="private-value">Password (skip when saving a form)</label><input id="private-value" name="password" type="password" value="not-for-capture">
+    <label for="readonly-value">Read only (skip)</label><input id="readonly-value" name="readonly" readonly value="Read only">
+  </fieldset>
+</form>
+<div class="actions"><button id="reset-form" type="button">Reset sample values</button><button id="clear-form" type="button">Clear editable values</button><a href="power.html">Power features playground</a></div>
+<h2>Input/change events</h2><pre id="events" aria-live="polite">Interact with a field to see its events.</pre>
+<script>
+  const form=document.querySelector('#control-form'),events=document.querySelector('#events');
+  for(const type of ['input','change'])form.addEventListener(type,event=>{const el=event.target;events.textContent=(type+' · '+el.name+' = '+(['checkbox','radio'].includes(el.type)?el.checked:el.value)+'\n'+events.textContent).slice(0,4000);});
+  document.querySelector('#reset-form').onclick=()=>{form.reset();events.textContent='Sample values reset.';};
+  document.querySelector('#clear-form').onclick=()=>{for(const el of form.elements){if(el.disabled||el.readOnly||el.type==='password')continue;if(['checkbox','radio'].includes(el.type))el.checked=false;else if('value'in el)el.value='';}events.textContent='Editable values cleared.';};
+</script>
+</html>

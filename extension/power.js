@@ -29,7 +29,7 @@
     }
     return result;
   }
-  function context(counter=1, now=new Date(), uuid=crypto.randomUUID()) {
+  function context(counter=1, now=new Date(), uuid=(root.QuickfillCore || require('./core.js')).uuid()) {
     return {date:now.toISOString().slice(0,10),timestamp:String(now.getTime()),uuid,counter};
   }
   const api={transforms,templates,dynamic,resolve,context};root.QuickfillPower=api;

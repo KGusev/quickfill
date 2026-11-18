@@ -9,6 +9,8 @@
   ];
   const canonical = value => { const n = normalize(value); return groups.find(g => g.includes(n))?.[0] || n; };
   function compatible(field, value) {
+    if (field.type === 'checkbox') return typeof value==='string' && ['true','false'].includes(value.trim());
+    if (field.type === 'radio' && value === '') return true;
     if (field.options) return field.options.some(o => !o.disabled && (o.value === value || normalize(o.label) === normalize(value)));
     if (field.type === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     if (field.type === 'number') return value.trim() !== '' && Number.isFinite(Number(value));
@@ -33,7 +35,13 @@
       return content.replace(/\$(\d)/g, (_, n) => String(args[Number(n)-1] ?? ''));
     });
   }
-  const api = {relevant, ordered, formatMessage, normalize, canonical, compatible, suggestions};
+  function uuid() {
+    if(root.crypto.randomUUID)return root.crypto.randomUUID();
+    const bytes=root.crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+  }
+  const api = {relevant, ordered, formatMessage, normalize, canonical, compatible, suggestions, uuid};
   root.QuickfillCore = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(globalThis);

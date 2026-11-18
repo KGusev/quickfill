@@ -31,5 +31,6 @@ test('backup validation preserves tags, collections, mappings, transforms and pr
 test('legacy automatic suggestions use explicit activation for browser-autofill coexistence',()=>{
  assert.equal(registry.settings({suggestions:'auto'}).suggestions,'button');
  assert.equal(registry.settings({suggestions:'off'}).suggestions,'off');
- assert.equal(registry.settings({}).suggestions,'button');
+ assert.equal(registry.settings({}).suggestions,'inherit');
+ assert.equal(registry.effectiveSettings({}).suggestions,'button');
 });

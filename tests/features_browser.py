@@ -64,7 +64,7 @@ send('toggle');send('toggle');click('collapse')
 wait(lambda:storage()['entries'][0].get('collapsed'))
 assert js("s.querySelectorAll('.value').length")==0
 click('expand');wait(lambda:js("s.querySelectorAll('.value').length")>0)
-js("s.querySelector('button[aria-pressed]').click()")
+js("s.querySelector('article button[aria-pressed]').click()")
 wait(lambda:not storage()['entries'][0]['pinned'])
 # Keyboard search picks results, and Enter activates a native focused button.
 field('#mail');js("s.querySelector('.search').value='one@example.com';s.querySelector('.search').dispatchEvent(new Event('input'));s.querySelector('.search').focus();s.querySelector('.search').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,composed:true}))")

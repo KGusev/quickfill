@@ -103,7 +103,7 @@ js("s.querySelector('.search').focus()")
 send('palette');js("globalThis.u=document.querySelector('quickfill-tools').shadowRoot")
 assert js("document.querySelector('quickfill-sidebar').inert")
 assert js("(()=>{const p=u.querySelector('.palette').getBoundingClientRect(),side=s.querySelector('.panel').getBoundingClientRect();return document.elementFromPoint(Math.max(p.left,side.left)+12,p.top+45).localName==='quickfill-tools'})()")
-assert js("u.querySelector('.palette-count').textContent.includes('52')") # 45 values + 7 actions.
+assert js("u.querySelector('.palette-count').textContent.includes('53')") # 45 values + 8 actions.
 js("globalThis.searchY=u.querySelector('.palette input').getBoundingClientRect().top;u.querySelector('.palette-results').scrollTop=1000")
 assert js("u.querySelector('.palette input').getBoundingClientRect().top===searchY && u.querySelector('.palette-results').scrollTop>0")
 js("u.querySelector('.palette input').value='Long preview text';u.querySelector('.palette input').dispatchEvent(new Event('input'));u.querySelector('.palette input').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}))")

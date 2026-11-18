@@ -749,5 +749,167 @@
   },
   "paletteKeys": {
     "message": "↑ ↓ Выбор · Enter Выполнить · Esc Закрыть"
+  },
+  "launcherMenu": {
+    "message": "Действия Quickfill"
+  },
+  "launcherHint": {
+    "message": "Подсказки Quickfill · Правая кнопка мыши — другие действия"
+  },
+  "openSidebar": {
+    "message": "Открыть боковую панель"
+  },
+  "enterFullscreen": {
+    "message": "Развернуть на всё окно"
+  },
+  "exitFullscreen": {
+    "message": "Вернуть боковую панель"
+  },
+  "keyValues": {
+    "message": "Ключи и значения"
+  },
+  "valueType": {
+    "message": "Тип значения"
+  },
+  "chooseBoolean": {
+    "message": "Выберите…"
+  },
+  "booleanTrue": {
+    "message": "true · Да"
+  },
+  "booleanFalse": {
+    "message": "false · Нет"
+  },
+  "chooseDate": {
+    "message": "Выбрать дату"
+  },
+  "previousMonth": {
+    "message": "Предыдущий месяц"
+  },
+  "nextMonth": {
+    "message": "Следующий месяц"
+  },
+  "clearValue": {
+    "message": "Очистить"
+  },
+  "today": {
+    "message": "Сегодня"
+  },
+  "time": {
+    "message": "Время"
+  },
+  "hour": {
+    "message": "Часы"
+  },
+  "minute": {
+    "message": "Минуты"
+  },
+  "saveAllFields": {
+    "message": "Сохранить все значения полей…"
+  },
+  "saveSelectedFields": {
+    "message": "Сохранить выбранные поля"
+  },
+  "captureFormHint": {
+    "message": "Проверьте значения из выбранной формы. Выберите запись, измените ключи и типы и снимите отметки с ненужных полей. Пароли, исключённые, скрытые и недоступные для редактирования поля пропущены."
+  },
+  "capturePageHint": {
+    "message": "Проверьте значения со страницы. Выберите запись, измените ключи и типы и снимите отметки с ненужных полей. Пароли, исключённые, скрытые и недоступные для редактирования поля пропущены."
+  },
+  "maxValues": {
+    "message": "В одной записи может быть не более 200 полей."
+  },
+  "type_string": {
+    "message": "Строка"
+  },
+  "type_bool": {
+    "message": "Логический"
+  },
+  "type_number": {
+    "message": "Число"
+  },
+  "type_date": {
+    "message": "Дата"
+  },
+  "type_datetime": {
+    "message": "Дата и время"
+  },
+  "type_json": {
+    "message": "JSON"
+  },
+  "type_xml": {
+    "message": "XML"
+  },
+  "typeInvalid_bool": {
+    "message": "Логическое значение должно быть true или false."
+  },
+  "typeInvalid_number": {
+    "message": "Введите конечное число, например 42 или 3.14."
+  },
+  "typeInvalid_date": {
+    "message": "Введите корректную дату в формате ГГГГ-ММ-ДД."
+  },
+  "typeInvalid_datetime": {
+    "message": "Введите корректные местные дату и время в формате ГГГГ-ММ-ДДTЧЧ:мм."
+  },
+  "typeInvalid_json": {
+    "message": "Введите корректный JSON. Строки и имена свойств должны быть в двойных кавычках."
+  },
+  "typeInvalid_xml": {
+    "message": "Введите корректный XML с одним корневым элементом. DTD и пользовательские сущности не поддерживаются."
+  },
+  "captureSummary": {
+    "message": "Выбрано: $A$ · Заменяемых ключей: $B$",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      },
+      "b": {
+        "content": "$2"
+      }
+    }
+  },
+  "fieldsSaved": {
+    "message": "Сохранено значений полей: $A$.",
+    "placeholders": {
+      "a": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDate": {
+    "message": "Готово"
+  },
+  "globalSuggestionsHint": {
+    "message": "По умолчанию для всех сайтов. Ниже можно выбрать другое поведение для текущего сайта. Изменения сразу применяются в открытых вкладках."
+  },
+  "websiteSuggestionBehavior": {
+    "message": "Подсказки на этом сайте"
+  },
+  "suggestions_inherit": {
+    "message": "Использовать общую настройку ($MODE$)",
+    "placeholders": {
+      "mode": {
+        "content": "$1"
+      }
+    }
+  },
+  "openInTab": {
+    "message": "Открыть в новой вкладке"
+  },
+  "manageEntries": {
+    "message": "Сохранённые записи"
+  },
+  "managerTitle": {
+    "message": "Настройки Quickfill"
+  },
+  "savedWebsites": {
+    "message": "Сохранённые сайты"
+  },
+  "savedWebsitesHint": {
+    "message": "Настройки сайта появятся здесь после сохранения в Quickfill на этом сайте."
+  },
+  "sidebarUnavailable": {
+    "message": "Не удалось открыть Quickfill на этой странице. Обновите страницу и попробуйте снова. Служебные страницы браузера и страницы с ограничениями не поддерживаются."
   }
 }
