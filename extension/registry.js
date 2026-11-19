@@ -25,8 +25,10 @@
     return {width,suggestions:suggestions === 'auto' ? 'button' : suggestions,preferredEntry:value.preferredEntry || '',excluded:value.excluded || []};
   }
   function globalSettings(value = {}) {
-    if(!record(value) || !['off','button'].includes(value.suggestions ?? 'button'))fail();
-    return {suggestions:value.suggestions ?? 'button'};
+    if(!record(value))fail();
+    const sidebarSide=value.sidebarSide===undefined?'right':value.sidebarSide;
+    if(!['off','button'].includes(value.suggestions ?? 'button') || !['left','right'].includes(sidebarSide))fail();
+    return {suggestions:value.suggestions ?? 'button',sidebarSide};
   }
   function effectiveSettings(site = {}, global = {}) {
     const local=settings(site),defaults=globalSettings(global);

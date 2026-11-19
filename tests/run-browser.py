@@ -21,6 +21,8 @@ try:
     result=json.loads(ws.recv())
     if 'error' in result:raise RuntimeError(result['error'])
     subprocess.run([sys.executable,str(root/'tests/typed_browser.py'),result['result']['id'],locale],check=True,cwd=root)
+    subprocess.run([sys.executable,str(root/'tests/sidebar_position_browser.py'),'--extension-id',result['result']['id'],'--locale',locale],check=True,cwd=root)
+    subprocess.run([sys.executable,str(root/'tests/sidebar_resize_browser.py'),'--extension-id',result['result']['id'],'--locale',locale],check=True,cwd=root)
     subprocess.run([sys.executable,str(root/'tests/options_browser.py'),'--extension-id',result['result']['id'],'--locale',locale],check=True,cwd=root)
     subprocess.run([sys.executable,str(root/'tests/sidebar_recovery_browser.py'),'--keep-open'],check=True,cwd=root)
 finally:

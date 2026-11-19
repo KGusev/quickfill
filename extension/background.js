@@ -134,8 +134,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         data.mappings={...data.mappings,...QuickfillRegistry.mappings({[message.scope]:message.rules})};
       } else if(message.action === 'preferences') {
         data.preferences={...data.preferences,[message.origin]:QuickfillRegistry.settings(message.preferences)};
+      } else if(message.action === 'sidebar-width') {
+        if(typeof message.origin!=='string' || !message.origin.trim() || message.origin.length>2048 || !Number.isInteger(message.width) || message.width<320 || message.width>640)throw new Error('invalidImport');
+        const preferences=data.preferences||{},current=Object.hasOwn(preferences,message.origin)?preferences[message.origin]:undefined;
+        data.preferences={...preferences,[message.origin]:QuickfillRegistry.settings({...QuickfillRegistry.settings(current),width:message.width})};
       } else if(message.action === 'global-preferences') {
-        data.globalPreferences=QuickfillRegistry.globalSettings(message.preferences);
+        if(!message.preferences || typeof message.preferences!=='object' || Array.isArray(message.preferences))throw new Error('invalidImport');
+        data.globalPreferences=QuickfillRegistry.globalSettings({...QuickfillRegistry.globalSettings(data.globalPreferences),...message.preferences});
       } else if(message.action === 'onboarding') {
         data.onboardingDone=true;
       } else if(message.action === 'reserve') {

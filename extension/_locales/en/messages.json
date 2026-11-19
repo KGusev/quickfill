@@ -909,6 +909,18 @@
   "savedWebsitesHint": {
     "message": "Website preferences appear here after you save them from Quickfill on a website."
   },
+  "resizeSidebar": {
+    "message": "Resize sidebar"
+  },
+  "resizeSidebarHint": {
+    "message": "Drag or use arrow keys to resize. Double-click to reset."
+  },
+  "moveSidebarLeft": {
+    "message": "Move sidebar to the left"
+  },
+  "moveSidebarRight": {
+    "message": "Move sidebar to the right"
+  },
   "sidebarUnavailable": {
     "message": "Quickfill could not open on this page. Refresh the page and try again. Browser-internal and restricted pages are not supported."
   }

@@ -61,7 +61,7 @@ assert js("s.querySelectorAll('.values-table tbody tr.pair').length===3 && !remo
 # Fullscreen is reversible without replacing controls or losing the editor draft.
 js("s.querySelector('[data-action=fullscreen]').click()")
 assert js("s.querySelector('.panel').classList.contains('fullscreen')")
-assert js("Math.abs(s.querySelector('.panel').getBoundingClientRect().width-innerWidth)<=1")
+assert js("Math.abs(s.querySelector('.panel').getBoundingClientRect().width-document.documentElement.clientWidth)<=1")
 js("globalThis.focusable=Array.from(s.querySelectorAll('button,input,textarea,select,summary,[tabindex=\"0\"]')).filter(el=>!el.disabled&&el.tabIndex>=0&&el.checkVisibility());focusable[0].focus();focusable[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,composed:true,cancelable:true}))")
 assert js("s.activeElement===focusable.at(-1)")
 js("s.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,composed:true,cancelable:true}))")

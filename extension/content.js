@@ -20,7 +20,8 @@ globalThis.QuickfillReady = (async () => {
   const core = globalThis.QuickfillCore;
   let data = boot.data, target = null, visible = false, mode = 'registry', query = '';
   let host, shadow, main, status, search, header, registryTools, taskTools, destination;
-  let draft=null, filtersOpen=false, fullscreen=standalone, fullscreenButton, screenVersion=0;
+  let draft=null, filtersOpen=false, fullscreen=standalone, fullscreenButton, sidebarSideButton, movingSidebar=false, screenVersion=0;
+  let resizeHandle, resizeSession=null, pendingWidth=null, widthRequest=0;
   const fields = QuickfillFields, editable = fields.editable;
   let undoBatch = [], undoButton, showAll = standalone, languageRequest = 0;
   const power=QuickfillPower;
@@ -28,6 +29,7 @@ globalThis.QuickfillReady = (async () => {
   const typeFor=(entry,key)=>Object.hasOwn(entry.types||{},key)?entry.types[key]:'string';
   const prefs=()=>QuickfillRegistry.effectiveSettings(standalone?undefined:data.preferences?.[location.origin],data.globalPreferences);
   const globalSuggestions=()=>QuickfillRegistry.globalSettings(data.globalPreferences).suggestions;
+  const sidebarSide=()=>QuickfillRegistry.globalSettings(data.globalPreferences).sidebarSide;
   const inheritedSuggestionsLabel=()=>t('suggestions_inherit',t('suggestions_'+globalSuggestions()));
   const scopeFor=entry=>JSON.stringify([location.origin,location.pathname,entry.id]);
   const excluded=el=>!!el && prefs().excluded.includes(fields.describe(el).signature);
@@ -102,7 +104,7 @@ globalThis.QuickfillReady = (async () => {
     const current=QuickfillRegistry.effectiveSettings(data.preferences?.[origin],data.globalPreferences),form=node('form',standalone?{'aria-label':origin}:{});
     const preferred=labeled(form,t('preferredEntry'),node('select'));preferred.append(node('option',{value:''},t('noPreference')));
     data.entries.forEach(entry=>preferred.append(node('option',{value:entry.id},entry.name)));preferred.value=current.preferredEntry;
-    const appearance=node('fieldset');appearance.append(node('legend',{},t('appearance')));const width=labeled(appearance,t('sidebarWidth'),node('input',{type:'number',min:'320',max:'640',step:'20',required:''}));width.value=current.width;
+    const appearance=node('fieldset');appearance.append(node('legend',{},t('appearance')));const width=labeled(appearance,t('sidebarWidth'),node('input',{type:'number',min:'320',max:'640',step:'1',required:'','data-sidebar-width':'','data-origin':origin}));width.value=current.width;width.dataset.savedWidth=String(current.width);
     const behavior=labeled(form,t('websiteSuggestionBehavior'),node('select',{'data-site-suggestions':''}));
     behavior.append(node('option',{value:'inherit'},inheritedSuggestionsLabel()));
     ['off','button'].forEach(value=>behavior.append(node('option',{value},t('suggestions_'+value))));behavior.value=QuickfillRegistry.settings(data.preferences?.[origin]).suggestions;
@@ -125,10 +127,24 @@ globalThis.QuickfillReady = (async () => {
   }
   function updatePreferences(){
     if(shadow){
-      shadow.querySelector('.panel').style.width=fullscreen?'100vw':`min(${prefs().width}px,100vw)`;
+      const panel=shadow.querySelector('.panel'),side=standalone?'right':sidebarSide();
+      if(resizeSession&&(resizeSession.side!==side||fullscreen||!visible))finishResize(false);
+      applySidebarWidth();
+      if(panel.dataset.side!==side){QuickfillControls.close();panel.dataset.side=side;}
+      host.style.setProperty('inset',side==='left'?'0 auto auto 0':'0 0 auto auto','important');
+      if(sidebarSideButton){
+        const next=side==='right'?'left':'right',label=t(next==='left'?'moveSidebarLeft':'moveSidebarRight');
+        sidebarSideButton.replaceChildren(QuickfillIcon(next==='left'?'sidebarLeft':'sidebarRight'));
+        sidebarSideButton.title=label;sidebarSideButton.setAttribute('aria-label',label);sidebarSideButton.hidden=fullscreen;
+      }
       const global=shadow.querySelector('[data-global-suggestions]'),inherit=shadow.querySelector('[data-site-suggestions] option[value=inherit]');
       if(global&&!global.disabled&&global.value!==globalSuggestions()){global.value=globalSuggestions();global.dispatchEvent(new Event('input'));}
       if(inherit&&inherit.textContent!==inheritedSuggestionsLabel())inherit.textContent=inheritedSuggestionsLabel();
+      shadow.querySelectorAll('[data-sidebar-width]').forEach(input=>{
+        const width=String(QuickfillRegistry.settings(data.preferences?.[input.dataset.origin]).width);
+        if(input.value===input.dataset.savedWidth)input.value=width;
+        input.dataset.savedWidth=width;
+      });
     }
     if(standalone||excluded(target)||prefs().suggestions==='off')surface.hide();
     else{
@@ -137,11 +153,79 @@ globalThis.QuickfillReady = (async () => {
     }
   }
   function setFullscreen(value){
+    finishResize(false);
     fullscreen=standalone||value;const panel=shadow.querySelector('.panel');panel.classList.toggle('fullscreen',fullscreen);
     if(fullscreen&&!standalone){panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');}else{panel.removeAttribute('role');panel.removeAttribute('aria-modal');}
     if(fullscreenButton){const label=t(fullscreen?'exitFullscreen':'enterFullscreen');fullscreenButton.replaceChildren(QuickfillIcon(fullscreen?'shrink':'fullscreen'));fullscreenButton.title=label;fullscreenButton.setAttribute('aria-label',label);fullscreenButton.setAttribute('aria-pressed',String(fullscreen));}updatePreferences();
   }
   async function openInTab(){try{const result=await chrome.runtime.sendMessage({type:'open-options'});if(result?.error)throw new Error(result.error);}catch(error){notify(error.message);}}
+  async function moveSidebar(){
+    finishResize(false);
+    if(movingSidebar)return;movingSidebar=true;
+    const control=sidebarSideButton;control.setAttribute('aria-busy','true');
+    try{await mutate({action:'global-preferences',preferences:{sidebarSide:sidebarSide()==='right'?'left':'right'}});updatePreferences();}
+    catch(error){notify(t(error.message));}
+    finally{movingSidebar=false;control.removeAttribute('aria-busy');}
+  }
+  function resizeMaximum(){return Math.max(320,Math.min(640,document.documentElement.clientWidth));}
+  function clampResizeWidth(width){return Math.round(Math.max(320,Math.min(resizeMaximum(),width)));}
+  function applySidebarWidth(){
+    if(!shadow)return;
+    const width=resizeSession?.width??pendingWidth??prefs().width;
+    shadow.querySelector('.panel').style.width=fullscreen?'100%':`min(${width}px,100%)`;
+    if(resizeHandle){
+      resizeHandle.hidden=fullscreen||document.documentElement.clientWidth<=320;
+      resizeHandle.setAttribute('aria-valuemax',String(resizeMaximum()));
+      resizeHandle.setAttribute('aria-valuenow',String(clampResizeWidth(width)));
+    }
+  }
+  async function saveSidebarWidth(width){
+    const request=++widthRequest;pendingWidth=width;applySidebarWidth();
+    // A deliberate resize updates this field while leaving the other form edits intact.
+    shadow.querySelectorAll('[data-sidebar-width]').forEach(input=>{if(input.dataset.origin===location.origin){input.value=String(width);input.dataset.savedWidth=String(width);}});
+    try{await mutate({action:'sidebar-width',origin:location.origin,width});}
+    catch(error){if(request===widthRequest)notify(t(error.message));}
+    finally{if(request===widthRequest){pendingWidth=null;updatePreferences();}}
+  }
+  function finishResize(commit){
+    const session=resizeSession;if(!session)return;
+    resizeSession=null;shadow.querySelector('.panel').classList.remove('resizing');
+    if(session.handle.hasPointerCapture(session.pointerId))session.handle.releasePointerCapture(session.pointerId);
+    if(commit&&session.width!==session.startWidth)void saveSidebarWidth(session.width);else applySidebarWidth();
+  }
+  function makeResizeHandle(){
+    const handle=node('div',{class:'resize-handle','data-action':'resizeSidebar',role:'separator',tabindex:'0','aria-orientation':'vertical','aria-label':t('resizeSidebar'),'aria-controls':'quickfill-panel','aria-valuemin':'320',title:t('resizeSidebarHint')});
+    handle.addEventListener('pointerdown',event=>{
+      if(!isCurrent()||fullscreen||event.button!==0||!event.isPrimary||handle.hidden||resizeSession)return;
+      event.preventDefault();event.stopPropagation();QuickfillControls.close();handle.focus({preventScroll:true});
+      const width=Math.round(shadow.querySelector('.panel').getBoundingClientRect().width);
+      resizeSession={handle,pointerId:event.pointerId,startX:event.clientX,startWidth:width,width,side:sidebarSide()};
+      handle.setPointerCapture(event.pointerId);shadow.querySelector('.panel').classList.add('resizing');
+    });
+    const move=event=>{
+      const session=resizeSession;if(!session||session.pointerId!==event.pointerId)return;
+      if(!isCurrent()){finishResize(false);return;}
+      event.preventDefault();event.stopPropagation();
+      session.width=clampResizeWidth(session.startWidth+(event.clientX-session.startX)*(session.side==='left'?1:-1));applySidebarWidth();
+    };
+    handle.addEventListener('pointermove',move);
+    handle.addEventListener('pointerup',event=>{if(resizeSession?.pointerId===event.pointerId){move(event);finishResize(true);}});
+    for(const type of ['pointercancel','lostpointercapture'])handle.addEventListener(type,event=>{if(resizeSession?.pointerId===event.pointerId)finishResize(false);});
+    handle.addEventListener('dblclick',event=>{if(!isCurrent()||handle.hidden)return;event.preventDefault();finishResize(false);void saveSidebarWidth(380);});
+    return handle;
+  }
+  function resizeKeydown(event){
+    if(resizeSession&&event.key==='Escape'){event.preventDefault();event.stopPropagation();finishResize(false);return true;}
+    if(!resizeHandle||resizeHandle.hidden||!event.composedPath().includes(resizeHandle)||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return false;
+    event.preventDefault();event.stopPropagation();
+    if(!resizeSession){
+      const current=shadow.querySelector('.panel').getBoundingClientRect().width;
+      const delta=(event.key==='ArrowRight'?1:-1)*(sidebarSide()==='left'?1:-1)*(event.shiftKey?50:10);
+      const width=event.key==='Home'?320:event.key==='End'?resizeMaximum():clampResizeWidth(current+delta);
+      if(width!==current)void saveSidebarWidth(width);
+    }
+    return true;
+  }
   function walkthrough(){
     screen('walkthrough',t('walkthrough'));main.append(node('p',{},t('welcomeText')));
     const create=button(t('createExample'),async()=>{
@@ -220,14 +304,15 @@ globalThis.QuickfillReady = (async () => {
     host.style.cssText = 'all:initial!important;position:fixed!important;inset:0 0 auto auto!important;z-index:2147483646!important;';
     shadow = host.attachShadow({mode:'open'});
     shadow.append(node('style', {}, globalThis.QuickfillStyles));
-    const panel = node(standalone?'div':'aside', {class:'panel'+(standalone?' standalone':''), lang:boot.locale, 'aria-label':t('registryLabel')});
+    const panel = node(standalone?'div':'aside', {class:'panel'+(standalone?' standalone':''), id:'quickfill-panel',lang:boot.locale, 'aria-label':t('registryLabel')});
     header = node('header');
     const top=node('div',{class:'top'}),brand=node('div',{class:'brand'});brand.append(QuickfillIcon('magic'),node('h1',{},'Quickfill'));
     const controls=node('div',{class:'row header-controls'});
     if(!standalone){
+      sidebarSideButton=iconButton(t('moveSidebarLeft'),'sidebarLeft',moveSidebar);sidebarSideButton.dataset.action='sidebarSide';
       fullscreenButton=iconButton(t('enterFullscreen'),'fullscreen',()=>setFullscreen(!fullscreen));fullscreenButton.dataset.action='fullscreen';
       const newTab=iconButton(t('openInTab'),'external',openInTab);newTab.dataset.action='openInTab';
-      controls.append(fullscreenButton,newTab,iconButton(t('settings'),'settings',settings));
+      controls.append(sidebarSideButton,fullscreenButton,newTab,iconButton(t('settings'),'settings',settings));
     }
     controls.append(menu([[t('importData'),importData],[t('exportData'),exportData],[t('palette'),()=>surface.palette()]]));
     if(!standalone)controls.append(iconButton(t('closeSidebar'),'close',()=>toggle(false)));top.append(brand,controls);
@@ -247,12 +332,13 @@ globalThis.QuickfillReady = (async () => {
     undoButton=button(t('undo'),undo,'quiet');undoButton.disabled=!undoBatch.length;
     if(standalone){destination.hidden=true;undoButton.hidden=true;}
     const feedback=node('div',{class:'feedback'});feedback.append(status,undoButton,iconButton(t('dismiss'),'close',()=>notify('')));
-    footer.append(destination,feedback);panel.append(header,main,footer);shadow.append(panel);
+    footer.append(destination,feedback);panel.append(header,main,footer);if(!standalone){resizeHandle=makeResizeHandle();panel.append(resizeHandle);}shadow.append(panel);
     shadow.addEventListener('pointerdown',event=>{if(!event.target.closest('.menu-wrap'))shadow.querySelectorAll('.menu-list').forEach(el=>{el.hidden=true;el.previousSibling.setAttribute('aria-expanded','false');});});
     shadow.addEventListener('keydown',event=>{if(event.key==='Escape'){const open=shadow.querySelector('.menu-list:not([hidden])');if(open){event.preventDefault();event.stopPropagation();open.hidden=true;open.previousSibling.setAttribute('aria-expanded','false');open.previousSibling.focus();}}});
     document.documentElement.append(host);QuickfillControls.enhance(shadow,{t});setFullscreen(fullscreen);
   }
   function toggle(force) {
+    finishResize(false);
     mount(); visible = standalone|| (force ?? !visible); host.style.setProperty('display', visible ? 'block' : 'none', 'important');
     if (!visible) {
       QuickfillControls.close();
@@ -579,7 +665,7 @@ globalThis.QuickfillReady = (async () => {
     const request=++languageRequest;
     const next=await bootstrap();
     if(request!==languageRequest)return;
-    boot=next; data=boot.data;QuickfillControls.close();surface.escape();surface.hide(true);
+    finishResize(false);boot=next; data=boot.data;QuickfillControls.close();surface.escape();surface.hide(true);
     captureDraft();++screenVersion;const wasVisible=visible,wasSettings=mode==='settings'; host?.remove();host=null;mode='registry';query='';
     if(wasVisible){toggle(true);if(standalone&&wasSettings)settings();}
   }
@@ -665,6 +751,7 @@ globalThis.QuickfillReady = (async () => {
   }, true);
   document.addEventListener('keydown', event => {
     if(!isCurrent())return;
+    if(resizeKeydown(event))return;
     // Commands API owns Ctrl+B; avoid a second toggle from a page key handler.
     if(QuickfillControls.handleKeydown(event))return;
     if(surface.inside(event))return;
@@ -703,7 +790,8 @@ globalThis.QuickfillReady = (async () => {
     if (changedLanguage) reloadLanguage(); else {updatePreferences();render();}
   });
   // Page frameworks can replace root children without reloading the content script.
-  new MutationObserver(()=>{if(isCurrent()&&visible&&host&&!host.isConnected)mount();}).observe(document,{childList:true,subtree:true});
+  new MutationObserver(()=>{if(isCurrent()&&visible&&host&&!host.isConnected){finishResize(false);mount();}}).observe(document,{childList:true,subtree:true});
+  window.addEventListener('resize',()=>{if(isCurrent()){finishResize(false);applySidebarWidth();}});
   if(standalone){toggle(true);settings();}
 })();
 globalThis.QuickfillReady.catch(error=>{console.error('Quickfill could not initialize:',error);globalThis.QuickfillReady=null;});

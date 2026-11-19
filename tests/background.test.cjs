@@ -181,15 +181,15 @@ test('single-field saves default prototype-looking keys to string without inheri
 test('global inline preference persists without changing explicit website overrides or unrelated data', async () => {
   const preferences={site:{width:520,suggestions:'button',preferredEntry:'existing',excluded:['field']}};
   const send=worker({entries:[entry()],associations:{field:'email'},preferences});
-  assert.deepEqual((await send.read()).globalPreferences,{suggestions:'button'});
+  assert.deepEqual((await send.read()).globalPreferences,{suggestions:'button',sidebarSide:'right'});
   const result=await send({type:'mutate',action:'global-preferences',preferences:{suggestions:'off'}});
   assert.equal(result.error,undefined);
-  assert.deepEqual(result.data.globalPreferences,{suggestions:'off'});
+  assert.deepEqual(result.data.globalPreferences,{suggestions:'off',sidebarSide:'right'});
   assert.deepEqual(result.data.preferences,preferences);
   assert.equal(result.data.entries[0].values.email,'old@example.com');
   assert.deepEqual(result.data.associations,{field:'email'});
   assert.equal(send.writes(),1);
-  assert.deepEqual((await send.read()).globalPreferences,{suggestions:'off'});
+  assert.deepEqual((await send.read()).globalPreferences,{suggestions:'off',sidebarSide:'right'});
   const inherited=await send({type:'mutate',action:'preferences',origin:'site',preferences:{...preferences.site,suggestions:'inherit'}});
   assert.equal(inherited.error,undefined);
   assert.equal(inherited.data.preferences.site.suggestions,'inherit');
@@ -205,8 +205,96 @@ test('global preference validation is atomic and older imports preserve the chos
   const legacy=await send({type:'mutate',action:'import',strategy:'replace',bundle:{version:1,entries:[]}});
   assert.equal(legacy.error,undefined);assert.deepEqual(legacy.data.globalPreferences,{suggestions:'off'});
   const updated=await send({type:'mutate',action:'global-preferences',preferences:{suggestions:'button'}});
-  assert.equal(updated.error,undefined);assert.deepEqual(updated.data.globalPreferences,{suggestions:'button'});
+  assert.equal(updated.error,undefined);assert.deepEqual(updated.data.globalPreferences,{suggestions:'button',sidebarSide:'right'});
   assert.equal(send.writes(),2);
+});
+
+test('partial and concurrent global updates preserve sidebar side and inline preferences', async () => {
+  const send=worker({entries:[],globalPreferences:{suggestions:'button'}});
+  const updates=await Promise.all([
+    send({type:'mutate',action:'global-preferences',preferences:{sidebarSide:'left'}}),
+    send({type:'mutate',action:'global-preferences',preferences:{suggestions:'off'}})
+  ]);
+  assert.ok(updates.every(result=>result.error===undefined));
+  assert.deepEqual((await send.read()).globalPreferences,{suggestions:'off',sidebarSide:'left'});
+  const right=await send({type:'mutate',action:'global-preferences',preferences:{sidebarSide:'right'}});
+  assert.equal(right.error,undefined);
+  assert.deepEqual(right.data.globalPreferences,{suggestions:'off',sidebarSide:'right'});
+  assert.equal(send.writes(),3);
+});
+
+test('invalid sidebar updates cannot partially reset saved global preferences', async () => {
+  const globalPreferences={suggestions:'off',sidebarSide:'left'};
+  const send=worker({entries:[],globalPreferences}),before=await send.read();
+  for(const preferences of [undefined,null,[],false,'left',{sidebarSide:'top',suggestions:'button'},{sidebarSide:null},{sidebarSide:0},{sidebarSide:[]}]){
+    const result=await send({type:'mutate',action:'global-preferences',preferences});
+    assert.ok(result.error,JSON.stringify(preferences));
+    assert.deepEqual(await send.read(),before);
+  }
+  assert.equal(send.writes(),0);
+  const legacy=await send({type:'mutate',action:'import',strategy:'replace',bundle:{version:1,entries:[]}});
+  assert.equal(legacy.error,undefined);
+  assert.deepEqual(legacy.data.globalPreferences,globalPreferences);
+});
+
+test('sidebar width updates preserve site choices, global settings and unrelated registry data', async () => {
+  const origin='https://example.com',site={width:380,suggestions:'inherit',preferredEntry:'existing',excluded:['field']};
+  const send=worker({entries:[entry()],associations:{field:'email'},preferences:{[origin]:site,other:{width:520,suggestions:'off'}},globalPreferences:{suggestions:'off',sidebarSide:'left'}});
+  const before=await send.read();
+  for(const width of [320,467,640]){
+    const result=await send({type:'mutate',action:'sidebar-width',origin,width});
+    assert.equal(result.error,undefined);
+    assert.deepEqual(result.data,{...before,preferences:{...before.preferences,[origin]:{...site,width}}});
+  }
+  const fileOrigin=await send({type:'mutate',action:'sidebar-width',origin:'null',width:420});
+  assert.equal(fileOrigin.error,undefined);
+  assert.deepEqual(fileOrigin.data.preferences.null,{width:420,suggestions:'inherit',preferredEntry:'',excluded:[]});
+  assert.equal(send.writes(),4);
+});
+
+test('invalid sidebar widths and origins cannot alter stored preferences', async () => {
+  const origin='https://example.com',send=worker({entries:[],preferences:{[origin]:{width:480,suggestions:'button',excluded:['keep']}}}),before=await send.read();
+  const invalid=[
+    ...[undefined,null,'400',319,641,350.5,NaN,Infinity,false,[],{}].map(width=>({origin,width})),
+    ...[undefined,null,'','   ',42,[],{},'x'.repeat(2049)].map(origin=>({origin,width:400}))
+  ];
+  for(const request of invalid){
+    const result=await send({type:'mutate',action:'sidebar-width',...request});
+    assert.ok(result.error,JSON.stringify(request));
+    assert.deepEqual(await send.read(),before);
+  }
+  assert.equal(send.writes(),0);
+  const valid=await send({type:'mutate',action:'sidebar-width',origin,width:400});
+  assert.equal(valid.error,undefined);assert.equal(valid.data.preferences[origin].width,400);
+});
+
+test('queued sidebar resizing preserves the latest website and global preferences', async () => {
+  const origin='https://example.com',send=worker({entries:[],preferences:{},globalPreferences:{suggestions:'button',sidebarSide:'right'}});
+  const choices={width:380,suggestions:'off',preferredEntry:'chosen',excluded:['latest']};
+  const results=await Promise.all([
+    send({type:'mutate',action:'preferences',origin,preferences:choices}),
+    send({type:'mutate',action:'sidebar-width',origin,width:521}),
+    send({type:'mutate',action:'global-preferences',preferences:{sidebarSide:'left'}}),
+    send({type:'mutate',action:'sidebar-width',origin:'https://other.example',width:333})
+  ]);
+  assert.ok(results.every(result=>result.error===undefined));
+  const data=await send.read();
+  assert.deepEqual(data.preferences[origin],{...choices,width:521});
+  assert.equal(data.preferences['https://other.example'].width,333);
+  assert.deepEqual(data.globalPreferences,{suggestions:'button',sidebarSide:'left'});
+});
+
+test('sidebar resizing treats prototype-looking origins as ordinary stored keys', async () => {
+  const send=worker();
+  for(const origin of ['__proto__','constructor','toString']){
+    const created=await send({type:'mutate',action:'sidebar-width',origin,width:400});
+    assert.equal(created.error,undefined);
+    assert.equal(Object.hasOwn(created.data.preferences,origin),true);
+    assert.equal(created.data.preferences[origin].width,400);
+    const updated=await send({type:'mutate',action:'sidebar-width',origin,width:460});
+    assert.equal(updated.error,undefined);assert.equal(updated.data.preferences[origin].width,460);
+  }
+  assert.equal({}.width,undefined);
 });
 
 const noReceiver = () => new Error('Could not establish connection. Receiving end does not exist.');

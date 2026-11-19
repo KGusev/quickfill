@@ -94,7 +94,7 @@ test('select matching excludes disabled options and message substitutions are li
  assert.equal(core.formatMessage(en,'confirmDelete','<b>$1</b>'),'Delete “<b>$1</b>” and its saved values?');
 });
 test('global suggestions apply to inheriting sites while explicit website choices retain precedence',()=>{
- assert.deepEqual(registry.globalSettings(),{suggestions:'button'});
+ assert.deepEqual(registry.globalSettings(),{suggestions:'button',sidebarSide:'right'});
  assert.equal(registry.settings().suggestions,'inherit');
  assert.equal(registry.effectiveSettings().suggestions,'button');
  assert.equal(registry.effectiveSettings({}, {suggestions:'off'}).suggestions,'off');
@@ -111,7 +111,7 @@ test('global suggestions apply to inheriting sites while explicit website choice
 test('backups preserve global defaults and website inheritance without adding globals to old backups',()=>{
  const input={version:1,entries:[a],globalPreferences:{suggestions:'off'},preferences:{'https://example.com':{width:520,suggestions:'inherit'},'https://legacy.example':{suggestions:'auto'}}};
  const clean=registry.bundle(input);
- assert.deepEqual(clean.globalPreferences,{suggestions:'off'});
+ assert.deepEqual(clean.globalPreferences,{suggestions:'off',sidebarSide:'right'});
  assert.equal(clean.preferences['https://example.com'].suggestions,'inherit');
  assert.equal(clean.preferences['https://legacy.example'].suggestions,'button');
  assert.deepEqual(registry.bundle(JSON.parse(JSON.stringify(clean))),clean);
@@ -124,12 +124,30 @@ test('backups preserve global defaults and website inheritance without adding gl
 test('global preference imports obey duplicate strategy and omitted defaults never reset current settings',()=>{
  const current={entries:[],globalPreferences:{suggestions:'off'},preferences:{site:{suggestions:'inherit'}}};
  const before=structuredClone(current),incoming={version:1,entries:[],globalPreferences:{suggestions:'button'}};
- for(const strategy of ['merge','replace'])assert.deepEqual(registry.merge(current,incoming,strategy).globalPreferences,{suggestions:'button'});
+ for(const strategy of ['merge','replace'])assert.deepEqual(registry.merge(current,incoming,strategy).globalPreferences,{suggestions:'button',sidebarSide:'right'});
  assert.deepEqual(registry.merge(current,incoming,'skip').globalPreferences,{suggestions:'off'});
  for(const strategy of ['merge','replace','skip']){
    assert.deepEqual(registry.merge(current,{version:1,entries:[]},strategy).globalPreferences,{suggestions:'off'});
-   assert.deepEqual(registry.merge({entries:[]},incoming,strategy).globalPreferences,{suggestions:'button'});
+   assert.deepEqual(registry.merge({entries:[]},incoming,strategy).globalPreferences,{suggestions:'button',sidebarSide:'right'});
  }
  assert.deepEqual(current,before);
  assert.equal(Object.hasOwn(registry.merge({entries:[]},{version:1,entries:[]},'merge'),'globalPreferences'),false);
+});
+test('sidebar side defaults for legacy settings and survives backup round trips and import strategies',()=>{
+ assert.deepEqual(registry.globalSettings({suggestions:'off'}),{suggestions:'off',sidebarSide:'right'});
+ for(const sidebarSide of ['left','right']){
+   const globalPreferences={suggestions:'off',sidebarSide};
+   assert.deepEqual(registry.globalSettings(globalPreferences),globalPreferences);
+   const input={version:1,entries:[a],globalPreferences};
+   assert.deepEqual(registry.bundle(JSON.parse(JSON.stringify(registry.bundle(input)))).globalPreferences,globalPreferences);
+ }
+ const current={entries:[],globalPreferences:{suggestions:'off',sidebarSide:'left'}};
+ const incoming={version:1,entries:[],globalPreferences:{suggestions:'button',sidebarSide:'right'}};
+ for(const strategy of ['merge','replace'])assert.deepEqual(registry.merge(current,incoming,strategy).globalPreferences,incoming.globalPreferences);
+ assert.deepEqual(registry.merge(current,incoming,'skip').globalPreferences,current.globalPreferences);
+ for(const strategy of ['merge','replace','skip'])assert.deepEqual(registry.merge(current,{version:1,entries:[]},strategy).globalPreferences,current.globalPreferences);
+ for(const sidebarSide of [null,'top','LEFT','',false,0,[],{}]){
+   assert.throws(()=>registry.globalSettings({sidebarSide}),/invalidImport/);
+   assert.throws(()=>registry.bundle({...incoming,globalPreferences:{sidebarSide}}),/invalidImport/);
+ }
 });

@@ -17,6 +17,10 @@ After installing or reloading the extension, clicking its toolbar icon initializ
 
 The compact header keeps search and New entry within reach. Settings has its own icon; Import, Export, and the command palette are in the header's three-dot menu. Settings → Data tools also provides Import and Export icon buttons with tooltips. Entry menus contain Edit, Duplicate, and Delete. Pin and expand/collapse controls remain beside the title, with Fill form below it.
 
+Use the **Move sidebar to the left/right** icon in the header to switch sides. The choice is saved for all websites and updates open tabs without losing editor drafts. The button is hidden while expanded to the full window; returning to the sidebar restores the selected side.
+
+Drag the gripper on the sidebar's inner edge to resize it between **320 and 640 px**, within the available screen width. The width is saved for the current website when you release it. Press **Escape** during a drag to cancel, or double-click the gripper to reset to 380 px. With the gripper focused, use the left/right arrow keys to move the edge, **Shift** for larger steps, and **Home/End** for the minimum/maximum width. Resizing keeps unsaved form edits intact.
+
 The entry editor uses a key/value table with multiline values, per-row transformations, Add value, and Remove value. The header's **Expand to full window** control gives the editor and settings more room. **Escape** returns to the sidebar without losing edits; the same header control also restores the sidebar width.
 
 Choose **Open in new tab** in the sidebar header or **Settings → General** to open Quickfill on its own page. Switch between **Saved entries** and **Settings** to edit typed values, change global and saved website preferences, and import or export backups. The page fills the tab and works independently of the source website. Both views share saved data; unsaved drafts stay in the tab where you edit them. The browser's extension **Options** action opens the same page.
@@ -56,7 +60,7 @@ Translations live in `extension/_locales/en/messages.json` and `extension/_local
 - **☆/★** pins an entry. Pinned entries appear first, followed by entries for the current website. **Collapse/Expand** controls long entries; both settings persist.
 - Edit names, colors, and values; delete entries with confirmation. In **Websites**, enter one exact origin per line, such as `https://example.com`. Leave it blank for all websites. Scheme and port matter; subdomains are separate. **Show entries for all websites** temporarily reveals other entries.
 
-The sidebar overlays the right edge of the page. Frames have independent sidebars so a context-menu action stays with its field. Only explicitly selected values are filled; nothing is submitted automatically.
+The sidebar overlays the selected edge of the page, starting on the right. Frames have independent sidebars so a context-menu action stays with its field. Only explicitly selected values are filled; nothing is submitted automatically.
 
 ## Faster workflows
 
@@ -98,7 +102,7 @@ Fill failures distinguish incompatible values, disabled/read-only fields, exclud
 - **Replace:** replace only duplicate entries entirely; unrelated entries remain.
 - **Keep existing:** skip duplicate entries while adding new ones.
 
-Merge and replace overwrite conflicting field associations; keep-existing preserves them. Backups contain plain saved values, tags, collections, transformations, site restrictions, pin/collapse settings, field associations, saved mappings, global inline-suggestion preferences, and website preferences. They do not include the UI language preference, generated-value counters, or walkthrough completion. Older version-1 backups without the new fields still import. Mapping and preference conflicts follow the same merge/replace versus keep-existing policy as associations. Older backups without global preferences leave your current global choice unchanged. Limits are 2 MB per backup, 500 entries, and 200 keys per entry. Invalid files are rejected before storage changes.
+Merge and replace overwrite conflicting field associations; keep-existing preserves them. Backups contain plain saved values, tags, collections, transformations, site restrictions, pin/collapse settings, field associations, saved mappings, global preferences for inline suggestions and sidebar position, and website preferences. They do not include the UI language preference, generated-value counters, or walkthrough completion. Older version-1 backups without the new fields still import. Mapping and preference conflicts follow the same merge/replace versus keep-existing policy as associations. Older backups without global preferences leave your current global choice unchanged. Limits are 2 MB per backup, 500 entries, and 200 keys per entry. Invalid files are rejected before storage changes.
 
 Example backup format:
 
