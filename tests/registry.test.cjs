@@ -151,3 +151,18 @@ test('sidebar side defaults for legacy settings and survives backup round trips 
    assert.throws(()=>registry.bundle({...incoming,globalPreferences:{sidebarSide}}),/invalidImport/);
  }
 });
+
+test('templates validate structure and survive backup merges with associations',()=>{
+ const template={id:'profile',name:'Profile',fields:[{key:'email',type:'string'}]};
+ const linked={...a,templateId:'profile'};
+ const backup={version:1,templates:[template],entries:[linked]};
+ assert.deepEqual(registry.bundle(backup).templates,[template]);
+ assert.equal(registry.merge({entries:[],associations:{}},backup,'merge').entries[0].templateId,'profile');
+ assert.throws(()=>registry.template({...template,fields:[]}));
+ assert.throws(()=>registry.template({...template,fields:[...template.fields,...template.fields]}));
+ assert.throws(()=>registry.template({...template,fields:[{key:'email',type:'invalid'}]}));
+ assert.throws(()=>registry.merge({entries:[],associations:{}},{...backup,templates:[]},'merge'));
+ const renamed={...template,name:'Renamed'};
+ assert.equal(registry.merge({entries:[],templates:[template]}, {...backup,templates:[renamed]},'skip').templates[0].name,'Profile');
+ assert.equal(registry.merge({entries:[],templates:[template]}, {...backup,templates:[renamed]},'replace').templates[0].name,'Renamed');
+});

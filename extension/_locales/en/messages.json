@@ -1,4 +1,68 @@
 {
+  "reorderField": {"message": "Drag to reorder field; use Up or Down arrow keys"},
+  "notFilled": {"message": "Not filled"},
+  "associatingEntries": {"message": "Associating entries…"},
+  "associateEntries": {
+    "message": "Associate existing entries"
+  },
+  "associateEntriesHint": {
+    "message": "Select entries to link to this template. All existing fields, values, and types are kept unchanged. Any previous template association is replaced."
+  },
+  "noEntriesToAssociate": {
+    "message": "All existing entries are already associated, or there are no entries yet."
+  },
+  "entriesAssociated": {
+    "message": "Entries associated with template"
+  },
+  "manageTemplates": {
+    "message": "Templates"
+  },
+  "newTemplate": {
+    "message": "New template"
+  },
+  "editTemplate": {
+    "message": "Edit template"
+  },
+  "templateName": {
+    "message": "Template name"
+  },
+  "saveTemplate": {
+    "message": "Save template"
+  },
+  "deleteTemplate": {
+    "message": "Delete template"
+  },
+  "templateSaved": {
+    "message": "Template saved"
+  },
+  "createTemplateFromEntry": {
+    "message": "Create template from entry"
+  },
+  "templateLabel": {
+    "message": "Template: $NAME$",
+    "placeholders": {
+      "name": {"content": "$1", "example": "Profile"}
+    }
+  },
+  "templatesHint": {
+    "message": "Group entries by shared field names and types. Create a template here or from an entry’s menu."
+  },
+  "noTemplates": {
+    "message": "No templates yet."
+  },
+  "templateStructureHint": {
+    "message": "Define field names and types. Templates contain no entry values. Changes apply when you next choose the template; existing entries keep their values and fields."
+  },
+  "templateAssociationHint": {
+    "message": "For saved entries, choosing a template only changes the association. For new entries, missing fields are added. Choose Blank to detach the template."
+  },
+  "deleteTemplateHint": {
+    "message": "Delete this template? Associated entries will keep all their fields and values, but will no longer be linked to it."
+  },
+  "templateValidation": {
+    "message": "Enter a template name and 1–200 fields with unique, nonempty names."
+  },
+  "reorderEntry": {"message": "Drag to reorder; use arrow keys to move within the group"},
   "extensionName": {
     "message": "Quickfill Registry"
   },
@@ -111,7 +175,7 @@
     "message": "Remove value"
   },
   "addValue": {
-    "message": "+ Add value"
+    "message": "Add value"
   },
   "saveEntry": {
     "message": "Save entry"

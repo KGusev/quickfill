@@ -44,26 +44,40 @@
       })];
     }));
   }
+  function template(item) {
+    if(!record(item)||typeof item.id!=='string'||!item.id||item.id.length>200||typeof item.name!=='string'||!item.name.trim()||item.name.length>100||!Array.isArray(item.fields)||!item.fields.length||item.fields.length>200)fail();
+    const fields=item.fields.map(field=>{
+      if(!record(field)||typeof field.key!=='string'||!field.key.trim()||field.key.length>200||!typed.names.includes(field.type))fail();
+      return {key:field.key.trim(),type:field.type};
+    });
+    if(new Set(fields.map(field=>field.key)).size!==fields.length)fail();
+    return {id:item.id,name:item.name.trim(),fields};
+  }
   function entry(item) {
     if (!record(item) || typeof item.id !== 'string' || !item.id || item.id.length > 200 || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 100 || !/^#[0-9a-f]{6}$/i.test(item.color) || !record(item.values)) fail();
     const pairs = Object.entries(item.values);
     if (pairs.length > 200 || pairs.some(([k,v]) => !k.trim() || k.length > 200 || typeof v !== 'string' || v.length > 100000)) fail();
+    if(typeof (item.templateId ?? '')!=='string'||(item.templateId||'').length>200)fail();
     const tags=item.tags ?? [];
     if(!Array.isArray(tags)||tags.length>30||tags.some(x=>typeof x!=='string'||!x.trim()||x.length>60)||typeof (item.collection ?? '')!=='string'||(item.collection ?? '').length>100)fail();
     const rules=item.transforms ?? {};if(!record(rules))fail();
     const transforms=Object.fromEntries(Object.entries(rules).filter(([key])=>Object.hasOwn(item.values,key)).map(([key,value])=>[key,transform(value)]));
     const valueTypes=item.types ?? {};if(!record(valueTypes))fail();
     const types=Object.fromEntries(Object.entries(valueTypes).filter(([key])=>Object.hasOwn(item.values,key)).map(([key,type])=>{if(!typed.names.includes(type))fail();const error=typed.validate(item.values[key],type);if(error)throw new Error(error);return [key,type];}));
-    return {tags:[...new Set(tags.map(x=>x.trim()))],collection:item.collection || '',transforms,types,id:item.id, name:item.name.trim(), color:item.color, values:Object.fromEntries(pairs), sites:sites(item.sites), pinned:!!item.pinned, collapsed:!!item.collapsed};
+    return {...(item.templateId?{templateId:item.templateId}:{}),tags:[...new Set(tags.map(x=>x.trim()))],collection:item.collection || '',transforms,types,id:item.id, name:item.name.trim(), color:item.color, values:Object.fromEntries(pairs), sites:sites(item.sites), pinned:!!item.pinned, collapsed:!!item.collapsed};
   }
   function bundle(input) {
     if (!record(input) || input.version !== 1 || !Array.isArray(input.entries) || input.entries.length > 500 || new TextEncoder().encode(JSON.stringify(input)).length > 2000000) fail();
+    const templates=(input.templates ?? []);
+    if(!Array.isArray(templates)||templates.length>500)fail();
+    const cleanTemplates=templates.map(template);
+    if(new Set(cleanTemplates.map(item=>item.id)).size!==cleanTemplates.length)fail();
     const entries = input.entries.map(entry);
     if (new Set(entries.map(e => e.id)).size !== entries.length) fail();
     const associations = input.associations ?? {};
     if (!record(associations) || Object.entries(associations).some(([k,v]) => k.length > 5000 || typeof v !== 'string' || !v.trim() || v.length > 200)) fail();
     const preferences=input.preferences ?? {};if(!record(preferences))fail();
-    return {version:1, entries, associations:Object.fromEntries(Object.entries(associations)), mappings:mappings(input.mappings), preferences:Object.fromEntries(Object.entries(preferences).map(([key,value])=>[key,settings(value)])),...(Object.hasOwn(input,'globalPreferences')?{globalPreferences:globalSettings(input.globalPreferences)}:{})};
+    return {version:1, entries, templates:cleanTemplates, associations:Object.fromEntries(Object.entries(associations)), mappings:mappings(input.mappings), preferences:Object.fromEntries(Object.entries(preferences).map(([key,value])=>[key,settings(value)])),...(Object.hasOwn(input,'globalPreferences')?{globalPreferences:globalSettings(input.globalPreferences)}:{})};
   }
   function merge(data, incoming, strategy) {
     if (!['merge','replace','skip'].includes(strategy)) fail();
@@ -81,11 +95,15 @@
         entries[index] = entry({...item, values:{...previous.values, ...item.values}, transforms:{...retainedTransforms, ...item.transforms}, types:{...retainedTypes,...item.types}});
       }
     }
+    const templates=(data.templates||[]).map(item=>({...item}));
+    for(const item of clean.templates){const index=templates.findIndex(old=>old.id===item.id);if(index<0)templates.push(item);else if(strategy!=='skip')templates[index]=item;}
+    if(templates.length>500)fail();
+    if(entries.some(item=>item.templateId&&!templates.some(template=>template.id===item.templateId)))fail();
     if (entries.length > 500) fail();
     const mergeMap=(current,incoming)=>strategy==='skip'?{...incoming,...current}:{...current,...incoming};
     const globalPreferences=Object.hasOwn(clean,'globalPreferences') && (strategy!=='skip'||!Object.hasOwn(data,'globalPreferences')) ? {globalPreferences:clean.globalPreferences} : {};
-    return {...data, entries, ...globalPreferences, mappings:mergeMap(data.mappings,clean.mappings),preferences:mergeMap(data.preferences,clean.preferences), associations:strategy === 'skip' ? {...clean.associations, ...data.associations} : {...data.associations, ...clean.associations}};
+    return {...data, entries, templates, ...globalPreferences, mappings:mergeMap(data.mappings,clean.mappings),preferences:mergeMap(data.preferences,clean.preferences), associations:strategy === 'skip' ? {...clean.associations, ...data.associations} : {...data.associations, ...clean.associations}};
   }
-  const api = {entry, bundle, merge, sites, transform, settings, globalSettings, effectiveSettings, mappings}; root.QuickfillRegistry = api;
+  const api = {template, entry, bundle, merge, sites, transform, settings, globalSettings, effectiveSettings, mappings}; root.QuickfillRegistry = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(globalThis);

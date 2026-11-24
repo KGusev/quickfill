@@ -30,3 +30,9 @@ test('translated substitutions preserve the same arguments', () => {
     assert.deepEqual(ru[key].placeholders, en[key].placeholders, key);
   }
 });
+
+test('template labels display the actual name in both languages', () => {
+  const {formatMessage} = require('../extension/core.js');
+  assert.equal(formatMessage(en, 'templateLabel', 'Work profile'), 'Template: Work profile');
+  assert.equal(formatMessage(ru, 'templateLabel', 'Рабочий профиль'), 'Шаблон: Рабочий профиль');
+});

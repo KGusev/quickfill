@@ -5,7 +5,7 @@ state=runpy.run_path(str(Path(__file__).with_name('features_browser.py')))
 page,worker,wait,send,labels,locale,js,click,storage,navigate,field,value=[state[k] for k in ['page','worker','wait','send','labels','locale','js','click','storage','navigate','field','value']]
 entry={'id':'power','name':'Power profile','color':'#315de4','tags':['QA','Work'],'collection':'Project','values':{'email':'alex@example.com','phone':'+1 (555) 010-1234','first_name':'Alice','reference':'test-{{counter}}-{{uuid}}','created':'{{date}}'},'transforms':{'phone':{'type':'digits'}}}
 second={'id':'personal','name':'Personal profile','color':'#ee8844','tags':['Personal'],'collection':'Personal','values':{'email':'home@example.com'}}
-worker.js('chrome.storage.local.set({registry:'+json.dumps({'entries':[entry,second],'associations':{},'language':'auto','onboardingDone':True})+'})')
+worker.js('chrome.storage.local.set({registry:'+json.dumps({'templates':[{'id':'address','name':'Address','fields':[{'key':key,'type':'string'} for key in ['address','city','postal_code','country']]}],'entries':[entry,second],'associations':{},'language':'auto','onboardingDone':True})+'})')
 navigate('power.html');send('toggle');page.call('Page.bringToFront');page.call('Emulation.setFocusEmulationEnabled',enabled=True)
 def preview_power():
     js("Array.from(s.querySelectorAll('article')).find(a=>a.querySelector('h2')?.textContent==='Power profile' && a.querySelector('.card-actions')).querySelector('.card-actions button').click()")
@@ -74,8 +74,8 @@ click('duplicate');js("s.querySelector('form input').value='Power copy';s.queryS
 wait(lambda:len(storage()['entries'])==3)
 copy=next(e for e in storage()['entries'] if e['name']=='Power copy')
 assert copy['id']!='power';assert copy['tags']==['QA','Work'];assert copy['transforms']['phone']['type']=='digits'
-# Template creates the intended key map without editing existing profiles.
-click('newEntryButton');js("s.querySelector('[data-template]').value='address';s.querySelector('[data-template]').dispatchEvent(new Event('change'))")
+# A saved template creates the intended key map without editing existing profiles.
+click('newEntryButton');js("s.querySelector('form input').value='New address';s.querySelector('[data-template]').value='address';s.querySelector('[data-template]').dispatchEvent(new Event('change'))")
 assert js("Array.from(s.querySelectorAll('.pair input:not([data-format])')).map(e=>e.value).includes('postal_code')")
 js("s.querySelector('form').requestSubmit()")
 wait(lambda:len(storage()['entries'])==4)

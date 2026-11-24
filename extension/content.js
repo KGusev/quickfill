@@ -252,7 +252,9 @@ globalThis.QuickfillReady = (async () => {
     if(tag==='button'&&text)addButtonIcon(el,text);
     return el;
   }
+  const destructiveLabel=label=>['removeValue','deleteEntry','deleteTemplate','discardDraft','clearValue'].some(key=>t(key)===label);
   function addButtonIcon(el,label){
+    if(destructiveLabel(label))el.classList.add('danger');
     const actions={newEntry:'add',newEntryButton:'add',addValue:'add',saveEntry:'save',saveValue:'save',savePreferences:'save',saveMapping:'save',saveAllFields:'save',saveSelectedFields:'save',edit:'edit',editAssociation:'edit',duplicate:'copy',deleteEntry:'delete',removeValue:'delete',importData:'import',exportData:'export',filters:'filter',clearFilters:'filter',undo:'undo',cancel:'cancel',back:'back',fillForm:'play',applyForm:'play',applyValue:'play',previewImport:'import',applyImport:'import',resumeDraft:'edit',discardDraft:'delete',keepField:'save',settings:'settings',openSidebar:'list',walkthrough:'magic',currentSite:'link',finishWalkthrough:'check',skipWalkthrough:'forward',createExample:'add',fillSample:'play',close:'close',suggestedValues:'list',clearValue:'delete',today:'calendar'};
     const icon=Object.entries(actions).find(([key])=>t(key)===label)?.[1];if(icon){const svg=QuickfillIcon(icon);svg.classList.add('button-icon');el.prepend(svg);}
   }
@@ -262,7 +264,7 @@ globalThis.QuickfillReady = (async () => {
     if(status){status.replaceChildren();if(text)status.append(node('span',{},text));if(details.length){const more=node('details');more.append(node('summary',{},t('details')));details.forEach(message=>more.append(node('p',{class:'hint'},message)));status.append(more);}}
     surface.announce(text);
   }
-  function iconButton(label,icon,handler){const b=button('',handler,'quiet icon-button');b.append(QuickfillIcon(icon));b.setAttribute('aria-label',label);b.title=label;return b;}
+  function iconButton(label,icon,handler){const b=button('',handler,'quiet icon-button');b.append(QuickfillIcon(icon));b.setAttribute('aria-label',label);b.title=label;if(destructiveLabel(label))b.classList.add('danger');return b;}
   function menu(items){
     const wrap=node('div',{class:'menu-wrap'}),trigger=iconButton(t('moreActions'),'more',()=>{const open=list.hidden;shadow.querySelectorAll('.menu-list').forEach(el=>{el.hidden=true;el.previousSibling.setAttribute('aria-expanded','false');});list.hidden=!open;trigger.setAttribute('aria-expanded',String(open));if(open)list.querySelector('button')?.focus();});
     const list=node('div',{class:'menu-list',hidden:''});trigger.setAttribute('aria-expanded','false');
@@ -271,13 +273,13 @@ globalThis.QuickfillReady = (async () => {
   }
   function captureDraft(){if(mode==='editor'&&main?.querySelector('form'))draft={nodes:[...main.childNodes]};}
   function syncHeader(){
-    if(!header)return;const registry=['registry','fill'].includes(mode);registryTools.hidden=!registry;taskTools.hidden=registry;
+    if(!header)return;const registry=['registry','fill'].includes(mode);registryTools.hidden=!registry;taskTools.hidden=registry||(standalone&&['settings','templates'].includes(mode)&&!main?.querySelector('form'));
     taskTools.querySelector('strong').tabIndex=-1;taskTools.querySelector('strong').textContent=main.querySelector('h2')?.textContent||'';updateDestination();
-    header.querySelectorAll('[data-view]').forEach(item=>{if(item.dataset.view===(['settings','import','importPreview'].includes(mode)?'settings':'registry'))item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
+    header.querySelectorAll('[data-view]').forEach(item=>{if(item.dataset.view===(mode==='templates'?'templates':['settings','import','importPreview'].includes(mode)?'settings':'registry'))item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
   }
   function fieldLabel(el){return el?.getAttribute('aria-label')||el?.labels?.[0]?.textContent?.trim()||el?.getAttribute('placeholder')||fields.describe(el).hints[0]||el?.type||t('value');}
   function updateDestination(){if(destination&&!standalone){destination.textContent=target?.isConnected?t('destination',fieldLabel(target)):t('selectField');destination.title=destination.textContent;}}
-  function screen(next,title){QuickfillControls.close();captureDraft();mode=next;++screenVersion;main.dataset.view=next;main.replaceChildren(node('h2',{},title));main.scrollTop=0;syncHeader();taskTools.querySelector('strong').focus({preventScroll:true});return screenVersion;}
+  function screen(next,title){QuickfillControls.close();captureDraft();mode=next;++screenVersion;main.dataset.view=next;delete main.dataset.settingsTab;main.replaceChildren(node('h2',{},title));main.scrollTop=0;syncHeader();taskTools.querySelector('strong').focus({preventScroll:true});return screenVersion;}
   function typedValue(value,type='string'){
     const fragment=document.createDocumentFragment();
     if(type==='string'){fragment.append(highlighted(value));return fragment;}
@@ -323,7 +325,7 @@ globalThis.QuickfillReady = (async () => {
     header.append(top,registryTools,taskTools);
     if(standalone){
       const navigation=node('nav',{class:'manager-nav','aria-label':'Quickfill'});
-      for(const [view,label,icon,run] of [['registry',t('manageEntries'),'list',back],['settings',t('settings'),'settings',settings]]){const item=button('',run,'quiet');item.append(QuickfillIcon(icon),document.createTextNode(label));item.dataset.view=view;navigation.append(item);}
+      for(const [view,label,icon,run] of [['registry',t('manageEntries'),'list',back],['templates',t('manageTemplates'),'copy',templates],['settings',t('settings'),'settings',settings]]){const item=button('',run,'quiet');item.append(QuickfillIcon(icon),document.createTextNode(label));item.dataset.view=view;navigation.append(item);}
       top.after(navigation);document.title=t('managerTitle');document.documentElement.lang=boot.locale;
     }
     main=node('main');
@@ -371,7 +373,7 @@ globalThis.QuickfillReady = (async () => {
   async function flags(entry, patch) {
     try {await mutate({action:'flags',id:entry.id,...patch}); render();} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}
   }
-  const relevantEntries = () => core.ordered(data.entries.filter(e => (standalone || showAll || core.relevant(e,location.origin)) && (!tagFilter || e.tags?.includes(tagFilter)) && (!collectionFilter || e.collection===collectionFilter)),standalone?'':location.origin).sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||Number(b.id===prefs().preferredEntry)-Number(a.id===prefs().preferredEntry));
+  const relevantEntries = () => core.ordered(data.entries.filter(e => (standalone || showAll || core.relevant(e,location.origin)) && (!tagFilter || e.tags?.includes(tagFilter)) && (!collectionFilter || e.collection===collectionFilter)),standalone?'':location.origin).sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||(data.entryOrder ? ((data.entryOrder.indexOf(a.id)<0?Infinity:data.entryOrder.indexOf(a.id))-(data.entryOrder.indexOf(b.id)<0?Infinity:data.entryOrder.indexOf(b.id))) : Number(b.id===prefs().preferredEntry)-Number(a.id===prefs().preferredEntry)));
   function reason(match) {return match.reason === 'association' ? t('savedAssociation') : t('matchedHint',match.hint);}
   function valueButton(entry, key, value) {
     const b = button('', () => standalone?editor(entry):chooseValue(entry,key), 'value');
@@ -385,16 +387,63 @@ globalThis.QuickfillReady = (async () => {
     });
     return b;
   }
+  let draggedEntry=null;
   function card(entry, pairs = Object.entries(entry.values), edit = true) {
     const article = node('article'); article.style.setProperty('--entry-color', /^#[0-9a-f]{6}$/i.test(entry.color) ? entry.color : '#a05dff');
     const row=node('div',{class:'row card-heading'}),title=node('h2');title.append(highlighted(entry.name));row.append(title);
     if(edit){const pin=iconButton(t(entry.pinned?'unpin':'pin'),'pin',()=>flags(entry,{pinned:!entry.pinned}));pin.setAttribute('aria-pressed',String(!!entry.pinned));row.append(pin);
-      const expand=iconButton(t(entry.collapsed?'expand':'collapse'),entry.collapsed?'down':'up',()=>flags(entry,{collapsed:!entry.collapsed}));expand.setAttribute('aria-expanded',String(!entry.collapsed));row.append(expand,menu([[t('edit'),()=>editor(entry)],[t('duplicate'),()=>duplicate(entry)],[t('deleteEntry'),()=>deleteEntry(entry),true]]));}
+      const expand=iconButton(t(entry.collapsed?'expand':'collapse'),entry.collapsed?'down':'up',()=>flags(entry,{collapsed:!entry.collapsed}));expand.setAttribute('aria-expanded',String(!entry.collapsed));row.append(expand,menu([[t('edit'),()=>editor(entry)],[t('duplicate'),()=>duplicate(entry)],[t('createTemplateFromEntry'),()=>templateEditor(null,entry)],[t('deleteEntry'),()=>deleteEntry(entry),true]]));}
+    if(edit){
+      article.dataset.entryId=entry.id;
+      const handle=button('',()=>{},'reorder-handle');
+      const grip=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      grip.setAttribute('viewBox','0 0 12 18');grip.setAttribute('aria-hidden','true');
+      for(const x of [3,9])for(const y of [3,9,15]){const dot=document.createElementNS(grip.namespaceURI,'circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r','1.5');dot.setAttribute('fill','currentColor');grip.append(dot);}
+      handle.append(grip);
+      handle.title=t('reorderEntry');handle.setAttribute('aria-label',t('reorderEntry'));handle.draggable=true;row.prepend(handle);
+      const clear=()=>{main.querySelectorAll('[data-drop]').forEach(el=>el.removeAttribute('data-drop'));};
+      const move=async(targetId,after)=>{try{await mutate({action:'reorder',id:entry.id,targetId,after});render();}catch(error){notify(t(error.message));}};
+      handle.addEventListener('dragstart',event=>{draggedEntry=entry;event.dataTransfer.setData('application/x-quickfill-entry',entry.id);event.dataTransfer.effectAllowed='move';event.dataTransfer.setDragImage(article,24,24);
+        requestAnimationFrame(()=>{if(draggedEntry?.id===entry.id)article.setAttribute('data-dragging','');});
+      });
+      handle.addEventListener('dragend',()=>{draggedEntry=null;article.removeAttribute('data-dragging');clear();});
+      handle.addEventListener('keydown',event=>{
+        if(!['ArrowUp','ArrowDown'].includes(event.key))return;
+        event.preventDefault();
+        const entries=relevantEntries().filter(e=>!!e.pinned===!!entry.pinned),index=entries.findIndex(e=>e.id===entry.id),next=entries[index+(event.key==='ArrowDown'?1:-1)];
+        if(next)move(next.id,event.key==='ArrowDown');
+      });
+      article.addEventListener('dragover',event=>{
+        if(!draggedEntry||draggedEntry.id===entry.id||!!draggedEntry.pinned!==!!entry.pinned)return;
+        event.preventDefault();event.dataTransfer.dropEffect='move';clear();
+        article.dataset.drop=event.clientY>article.getBoundingClientRect().top+article.offsetHeight/2?'after':'before';
+      });
+      article.addEventListener('dragleave',event=>{if(!article.contains(event.relatedTarget))article.removeAttribute('data-drop');});
+      article.addEventListener('drop',async event=>{
+        if(!draggedEntry||!article.dataset.drop)return;
+        event.preventDefault();event.stopPropagation();
+        const id=draggedEntry.id,after=article.dataset.drop==='after';draggedEntry=null;clear();
+        try{await mutate({action:'reorder',id,targetId:entry.id,after});render();}catch(error){notify(t(error.message));}
+      });
+    }
     article.append(row);
+    const linkedTemplate=(data.templates||[]).find(item=>item.id===entry.templateId),templateName=linkedTemplate?.name;
+    if(templateName)article.append(node('p',{class:'hint template-label'},t('templateLabel',templateName)));
     if(entry.collection||entry.tags?.length){const meta=node('p',{class:'hint metadata'});meta.append(highlighted([entry.collection,...(entry.tags||[]).map(tag=>'#'+tag)].filter(Boolean).join(' · ')));article.append(meta);}
     if(edit){const actions=node('div',{class:'card-actions'});actions.append(node('span',{class:'hint'},t('valueCount',String(Object.keys(entry.values).length))),standalone?button(t('edit'),()=>editor(entry),'quiet'):button(t('fillForm'),()=>previewForm(entry),'quiet'));article.append(actions);}
-    if(!edit||!entry.collapsed||query)for(const [key,value] of pairs){article.append(valueButton(entry,key,value));if(value.length>100||value.includes('\n')){const full=node('details',{class:'full-value'});full.append(node('summary',{},t('showFullValue')),typedBlock(value,typeFor(entry,key)));article.append(full);}}
-    if (!pairs.length) article.append(node('p', {class:'hint'}, t('noValues')));
+    const shown=new Map(pairs),declared=linkedTemplate?.fields||[],orderedKeys=[...new Set([...declared.map(field=>field.key),...shown.keys()])];
+    if(!edit||!entry.collapsed||query)for(const key of orderedKeys){
+      const field=declared.find(field=>field.key===key),missing=field&&(!Object.hasOwn(entry.values,key)||entry.values[key]==='');
+      if(edit&&missing){
+        if(query&&!key.toLowerCase().includes(query.toLowerCase())&&!entry.name.toLowerCase().includes(query.toLowerCase()))continue;
+        const placeholder=button('',()=>editor(entry),'value unfilled-value');placeholder.dataset.unfilledKey=key;
+        placeholder.append(node('small',{},key+' · '+t('type_'+field.type)),node('span',{},t('notFilled')));article.append(placeholder);continue;
+      }
+      if(!shown.has(key))continue;
+      const value=shown.get(key);article.append(valueButton(entry,key,value));
+      if(value.length>100||value.includes('\n')){const full=node('details',{class:'full-value'});full.append(node('summary',{},t('showFullValue')),typedBlock(value,typeFor(entry,key)));article.append(full);}
+    }
+    if(!pairs.length&&!declared.length)article.append(node('p',{class:'hint'},t('noValues')));
     return article;
   }
   function render() {
@@ -420,7 +469,7 @@ globalThis.QuickfillReady = (async () => {
       main.append(node('h2', {class:'section'}, t('allEntries')));
     }
     const q = query.toLowerCase();
-    const entries = relevantEntries().filter(entry => [entry.name,entry.collection||'',...(entry.tags||[]), ...Object.entries(entry.values).flat()].some(v => v.toLowerCase().includes(q)));
+    const entries = relevantEntries().filter(entry => [entry.name,entry.collection||'',...(entry.tags||[]),...((data.templates||[]).find(item=>item.id===entry.templateId)?.fields||[]).map(field=>field.key), ...Object.entries(entry.values).flat()].some(v => v.toLowerCase().includes(q)));
     count.textContent=entries.length===data.entries.length?t('entryCount',String(entries.length)):t('matchingEntries',[String(entries.length),String(data.entries.length)]);
     let group;
     entries.forEach(entry => {
@@ -465,7 +514,12 @@ globalThis.QuickfillReady = (async () => {
     const entryId=existing?.id||core.uuid();
     const form = node('form',{class:'entry-editor'});
     const name = labeled(form, t('entryName'), node('input', {required:'', placeholder:t('entryNamePlaceholder'), maxlength:'100'})); name.value = existing?.name || '';
-    if(!existing?.id){const template=labeled(form,t('entryTemplate'),node('select',{'data-template':''}));template.append(node('option',{value:''},t('blankTemplate')));Object.keys(power.templates).forEach(key=>template.append(node('option',{value:key},t('template_'+key))));template.addEventListener('change',()=>{if(template.value)editor({...existing,name:name.value||t('template_'+template.value),values:{...power.templates[template.value]}});});}
+    const template=labeled(form,t('entryTemplate'),node('select',{'data-template':''}));
+    template.append(node('option',{value:''},t('blankTemplate')));
+    (data.templates||[]).forEach(item=>template.append(node('option',{value:item.id},item.name)));
+    template.value=existing?.templateId||'';
+    form.append(node('p',{class:'hint'},t('templateAssociationHint')));
+
     const color = labeled(form, t('entryColor'), node('input', {type:'color'})); color.value = existing?.color || '#a05dff';
     const organization=node('details',{class:'organization'});organization.append(node('summary',{},t('organization')));
     const sites = labeled(organization,t('sites'),node('textarea',{placeholder:'https://example.com'})); sites.value = (existing?.sites || []).join('\n');
@@ -482,17 +536,31 @@ globalThis.QuickfillReady = (async () => {
     let add;
     function clearKeyErrors(){pairs.querySelectorAll('td:first-child input[aria-invalid]').forEach(clearValidation);}
     function updatePairs(){clearKeyErrors();count.textContent=t('valueCount',String(pairs.children.length));empty.hidden=!!pairs.children.length;if(add)add.disabled=pairs.children.length>=200;}
-    function addPair(key = '', value = '') {
-      if(pairs.children.length>=200)return;
+    function addPair(key = '', value = '', valueType = existing?typeFor(existing,key):'string', placeholder=false) {
+      if(pairs.children.length>=(placeholder?400:200))return;
       const pair = node('tr', {class:'pair value-row'}),keyCell=node('td'),valueCell=node('td'),actionsCell=node('td',{class:'value-row-actions'});
       const k = labeled(keyCell, t('key'), node('input', {required:'', maxlength:'200', placeholder:'email',spellcheck:'false'})); k.value = key;k.previousSibling.className='sr-only';
+      if(placeholder){pair.dataset.templatePlaceholder=key;keyCell.append(node('small',{class:'hint'},t('notFilled')));}
       k.addEventListener('input',clearKeyErrors);
-      valueEditors.set(pair,valueEditor(keyCell,valueCell,value,existing?typeFor(existing,key):'string'));
+      valueEditors.set(pair,valueEditor(keyCell,valueCell,value,valueType));
       const advanced=node('details');advanced.append(node('summary',{},t('valueOptions')));transformControl(advanced,existing?.transforms?.[key]);advanced.append(node('p',{class:'hint'},t('variablesHint')));valueCell.append(advanced);
       actionsCell.append(iconButton(t('removeValue'),'close',()=>{const next=pair.nextElementSibling||pair.previousElementSibling;pair.remove();updatePairs();(next?.querySelector('input')||add).focus();}));
       pair.append(keyCell,valueCell,actionsCell);pairs.append(pair);updatePairs();
     }
-    if (existing) Object.entries(existing.values).forEach(([k,v]) => addPair(k,v)); else addPair();
+    if (existing) Object.entries(existing.values).forEach(([k,v]) => addPair(k,v,typeFor(existing,k),!data.entries.some(entry=>entry.id===existing.id)&&v===''&&!!(data.templates||[]).find(item=>item.id===existing.templateId)?.fields.some(field=>field.key===k))); else addPair();
+    function showTemplateFields(){
+      // Discard only untouched virtual rows when switching templates.
+      for(const pair of [...pairs.children])if(pair.dataset.templatePlaceholder!==undefined&&!valueEditors.get(pair).value&&pair.querySelector('input').value===pair.dataset.templatePlaceholder)pair.remove();
+      const selected=(data.templates||[]).find(item=>item.id===template.value);if(!selected){updatePairs();return;}
+      const keys=new Set([...pairs.children].map(pair=>pair.querySelector('input').value.trim()));
+      const missing=selected.fields.filter(field=>!keys.has(field.key));
+      if(missing.length)for(const pair of [...pairs.children])if(!pair.querySelector('input').value.trim()&&!valueEditors.get(pair).value)pair.remove();
+      missing.forEach(field=>addPair(field.key,'',field.type,true));
+      const rank=new Map(selected.fields.map((field,index)=>[field.key,index]));
+      [...pairs.children].sort((a,b)=>(rank.get(a.querySelector('input').value.trim())??Infinity)-(rank.get(b.querySelector('input').value.trim())??Infinity)).forEach(row=>pairs.append(row));updatePairs();
+    }
+    showTemplateFields();
+    template.addEventListener('change',showTemplateFields);
     add=button(t('addValue'), () => {addPair();pairs.lastChild.querySelector('input').focus();}, 'quiet');updatePairs();
     const tableTools=node('div',{class:'row value-table-tools'});tableTools.append(add,count);form.append(empty,tableTools,organization);
     const actions = node('div', {class:'actions'});
@@ -504,13 +572,13 @@ globalThis.QuickfillReady = (async () => {
       for (const pair of pairs.children) {
         const key = pair.querySelector('input').value.trim();
         if(!key||Object.hasOwn(values,key)){validation(pair.querySelector('input'),t('uniqueKeyRequired'));return;}
-        const control=valueEditors.get(pair);if(!control.validate())return;values[key]=control.value;valueTypes[key]=control.type;
+        const control=valueEditors.get(pair);if(pair.dataset.templatePlaceholder===key&&control.value==='')continue;if(!control.validate())return;values[key]=control.value;valueTypes[key]=control.type;
         transforms[key]={type:pair.querySelector('[data-transform]').value,format:pair.querySelector('[data-format]').value};
       }
       if(!name.value.trim()){validation(name,t('entryNameRequired'));return;}
       let allowedSites;try{allowedSites=QuickfillRegistry.sites(sites.value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean));}catch{validation(sites,t('sitesHint'));return;}
       const submit=form.querySelector('[type=submit]');if(submit.disabled)return;submit.disabled=true;const request=screenVersion,unlock=lockForm(form);
-      try {await mutate({action:'upsert', entry:{...existing, id:entryId, name:name.value.trim(), color:color.value, values,types:valueTypes,transforms,tags:tags.value.split(',').map(tag=>tag.trim()).filter(Boolean),collection:collection.value.trim(), sites:allowedSites}});if(draft?.nodes.includes(form))draft=null;if(request===screenVersion&&main.contains(form)){draft=null;mode='registry';back();}notify(t('entrySaved'));} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}finally{unlock();submit.disabled=false;}
+      try {await mutate({action:'upsert', entry:{...existing, id:entryId, templateId:template.value, name:name.value.trim(), color:color.value, values,types:valueTypes,transforms,tags:tags.value.split(',').map(tag=>tag.trim()).filter(Boolean),collection:collection.value.trim(), sites:allowedSites}});if(draft?.nodes.includes(form))draft=null;if(request===screenVersion&&main.contains(form)){draft=null;mode='registry';back();}notify(t('entrySaved'));} catch(e) {notify(e.message === 'invalidImport' ? t('invalidImport') : e.message);}finally{unlock();submit.disabled=false;}
     });
   }
   function back() {captureDraft();++screenVersion;mode='registry';render();search.focus();}
@@ -669,6 +737,110 @@ globalThis.QuickfillReady = (async () => {
     captureDraft();++screenVersion;const wasVisible=visible,wasSettings=mode==='settings'; host?.remove();host=null;mode='registry';query='';
     if(wasVisible){toggle(true);if(standalone&&wasSettings)settings();}
   }
+  function templates(){
+    screen('templates',t('manageTemplates'));
+    main.querySelector('h2').remove();main.append(templateSettings());syncHeader();
+  }
+  function templateSettings(){
+    const section=node('section',{class:'settings-section template-settings'}),heading=node('div',{class:'section-heading'});
+    heading.append(node('h2',{},t('manageTemplates')),button(t('newTemplate'),()=>templateEditor(),'primary'));
+    section.append(heading,node('p',{class:'hint'},t('templatesHint')));
+    if(!(data.templates||[]).length)section.append(node('p',{class:'hint'},t('noTemplates')));
+    const grid=node('div',{class:'template-grid'});section.append(grid);
+    for(const item of data.templates||[]){
+      const card=node('article',{class:'template-card'}),members=data.entries.filter(entry=>entry.templateId===item.id);
+      const row=node('div',{class:'section-heading'});row.append(node('h3',{},item.name),button(t('edit'),()=>templateEditor(item),'quiet'));card.append(row);
+      const schema=node('div',{class:'template-schema'});
+      for(const field of item.fields){const chip=node('span',{class:'schema-field'});chip.append(node('strong',{},field.key),node('small',{},t('type_'+field.type)));schema.append(chip);}card.append(schema);
+      const linked=node('div',{class:'template-members'});linked.append(node('p',{class:'hint'},t('entryCount',String(members.length))));
+      for(const entry of members)linked.append(button(entry.name,()=>editor(entry),'chip'));card.append(linked);
+      const actions=node('div',{class:'template-card-actions'});
+      actions.append(button(t('newEntry'),()=>editor({name:'',templateId:item.id,values:Object.fromEntries(item.fields.map(field=>[field.key,''])),types:Object.fromEntries(item.fields.map(field=>[field.key,field.type]))}),'quiet'),
+        button(t('associateEntries'),()=>associateTemplateEntries(item),'quiet'));
+      card.append(actions);grid.append(card);
+    }
+    return section;
+  }
+  function associateTemplateEntries(template){
+    screen('templates',t('associateEntries'));
+    main.append(node('h3',{},template.name),node('p',{class:'hint'},t('associateEntriesHint')));
+    const form=node('form'),list=node('div',{class:'template-entry-list'});
+    const candidates=data.entries.filter(entry=>entry.templateId!==template.id);
+    const choices=[];
+    for(const entry of candidates){
+      const label=node('label',{class:'template-entry-choice'}),input=node('input',{type:'checkbox',value:entry.id}),text=node('span');
+      text.append(node('strong',{},entry.name));
+      const current=data.templates.find(item=>item.id===entry.templateId);
+      if(current)text.append(node('small',{},t('templateLabel',current.name)));
+      label.append(input,text);list.append(label);choices.push(input);
+    }
+    if(!candidates.length)list.append(node('p',{class:'hint'},t('noEntriesToAssociate')));
+    const actions=node('div',{class:'actions sticky-actions'}),submit=button(t('associateEntries'),associate,'primary');
+    submit.dataset.action='associateEntries';
+    const feedback=node('p',{class:'hint',role:'status','aria-live':'polite'});
+    let saving=false;
+    const sync=()=>{submit.disabled=saving||!choices.some(input=>input.checked);};
+    sync();list.addEventListener('change',sync);list.addEventListener('input',sync);
+    actions.append(submit,button(t('cancel'),templates));form.append(list,feedback,actions);main.append(form);
+    // Use an explicit action: binding must not depend on native form submission
+    // or constraint validation in the document hosting the sidebar.
+    form.addEventListener('submit',event=>{event.preventDefault();void associate();});
+    async function associate(){
+      const entryIds=choices.filter(input=>input.checked).map(input=>input.value);
+      if(!entryIds.length||saving)return;
+      saving=true;sync();const request=screenVersion,unlock=lockForm(form);
+      feedback.textContent=t('associatingEntries');
+      try{
+        await mutate({action:'template-associate',id:template.id,entryIds});
+        if(request===screenVersion){templates();notify(t('entriesAssociated'));}
+      }catch(error){feedback.textContent=t(error.message);notify(t(error.message));}
+      finally{saving=false;unlock();sync();}
+    }
+  }
+
+  function templateEditor(existing,source){
+    screen('templates',existing?t('editTemplate'):t('newTemplate'));
+    const form=node('form',{class:'template-editor'}),name=labeled(form,t('templateName'),node('input',{required:'',maxlength:'100'}));
+    name.value=existing?.name||source?.name||'';
+    form.append(node('p',{class:'hint'},t('templateStructureHint')));
+    const rows=node('div',{class:'template-fields'});form.append(rows);
+    let draggedField=null;
+    function clearFieldDrop(){rows.querySelectorAll('[data-drop]').forEach(row=>row.removeAttribute('data-drop'));}
+    function add(field={key:'',type:'string'}){
+      if(rows.children.length>=200)return;
+      const row=node('div',{class:'template-field'}),keyCell=node('div'),typeCell=node('div');
+      const key=labeled(keyCell,t('key'),node('input',{required:'',maxlength:'200'})),type=labeled(typeCell,t('valueType'),node('select'));
+      const grip=button('⠿',()=>{},'field-grip');grip.draggable=true;grip.title=t('reorderField');grip.setAttribute('aria-label',t('reorderField'));
+      grip.addEventListener('keydown',event=>{
+        if(!['ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();
+        const next=event.key==='ArrowUp'?row.previousElementSibling:row.nextElementSibling;
+        if(next){rows.insertBefore(row,event.key==='ArrowUp'?next:next.nextElementSibling);grip.focus();}
+      });
+      grip.addEventListener('dragstart',event=>{draggedField=row;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('application/x-quickfill-template-field','field');event.dataTransfer.setDragImage(row,20,20);});
+      grip.addEventListener('dragend',()=>{draggedField=null;clearFieldDrop();});
+      row.addEventListener('dragover',event=>{if(!draggedField||draggedField===row)return;event.preventDefault();event.dataTransfer.dropEffect='move';clearFieldDrop();row.dataset.drop=event.clientY>row.getBoundingClientRect().top+row.offsetHeight/2?'after':'before';});
+      row.addEventListener('dragleave',event=>{if(!row.contains(event.relatedTarget))row.removeAttribute('data-drop');});
+      row.addEventListener('drop',event=>{if(!draggedField||!row.dataset.drop)return;event.preventDefault();rows.insertBefore(draggedField,row.dataset.drop==='after'?row.nextElementSibling:row);draggedField=null;clearFieldDrop();});
+      row.append(grip,keyCell,typeCell);
+      key.value=field.key;types.names.forEach(value=>type.append(node('option',{value},t('type_'+value))));type.value=field.type;
+      row.append(button(t('removeValue'),()=>row.remove(),'quiet'));rows.append(row);
+    }
+    const fields=existing?.fields||(source?Object.keys(source.values).map(key=>({key,type:typeFor(source,key)})):[]);
+    (fields.length?fields:[{key:'',type:'string'}]).forEach(add);
+    form.append(button(t('addValue'),()=>add(),'quiet'));
+    const actions=node('div',{class:'actions sticky-actions'});actions.append(node('button',{type:'submit',class:'primary'},t('saveTemplate')),button(t('cancel'),templates));
+    if(existing)actions.append(button(t('deleteTemplate'),()=>{
+      screen('templates',t('deleteTemplate'));main.append(node('p',{},t('deleteTemplateHint')));
+      main.append(button(t('deleteTemplate'),async()=>{try{await mutate({action:'template-delete',id:existing.id});templates();}catch(error){notify(t(error.message));}},'danger'),button(t('cancel'),()=>templateEditor(existing)));
+    },'danger'));
+    form.append(actions);main.append(form);name.focus();
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();const template={id:existing?.id||core.uuid(),name:name.value.trim(),fields:[...rows.children].map(row=>({key:row.querySelector('input').value.trim(),type:row.querySelector('select').value}))};
+      try{QuickfillRegistry.template(template);}catch{notify(t('templateValidation'));return;}
+      const unlock=lockForm(form);
+      try{await mutate({action:'template-upsert',template});templates();notify(t('templateSaved'));}catch(error){notify(t(error.message));}finally{unlock();}
+    });
+  }
   function settings() {
     screen('settings',t('settings'));
     const general=node('section',{class:'settings-section'});general.append(node('h2',{},t('general')));
@@ -687,11 +859,11 @@ globalThis.QuickfillReady = (async () => {
     const storage=node('section',{class:'settings-section'}),storageHeader=node('div',{class:'section-heading'}),dataTools=node('div',{class:'data-tools',role:'group','aria-label':t('dataSettings')});
     const importButton=iconButton(t('importData'),'import',importData),exportButton=iconButton(t('exportData'),'export',exportData);importButton.dataset.action='importData';exportButton.dataset.action='exportData';dataTools.append(importButton,exportButton);
     storageHeader.append(node('h2',{},t('dataSettings')),dataTools);storage.append(storageHeader,node('p',{class:'hint'},t('backupHint')));
-    main.append(general,standalone?savedWebsiteSettings():websiteSettings(),storage);
+    main.append(general,standalone?savedWebsiteSettings():websiteSettings(),storage);if(!standalone)general.append(button(t('manageTemplates'),templates,'quiet'));
     select.addEventListener('change',async()=>{try{await mutate({action:'language',language:select.value});await reloadLanguage();}catch(e){notify(t(e.message));}});
   }
   function exportData() {
-    const bundle={version:1,entries:data.entries,associations:data.associations,mappings:data.mappings||{},preferences:data.preferences||{},globalPreferences:QuickfillRegistry.globalSettings(data.globalPreferences)};
+    const bundle={version:1,templates:data.templates||[],entries:data.entries,associations:data.associations,mappings:data.mappings||{},preferences:data.preferences||{},globalPreferences:QuickfillRegistry.globalSettings(data.globalPreferences)};
     const url=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'}));
     const link=node('a',{href:url,download:'quickfill-backup.json'});shadow.append(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),10000);notify(t('exported'));
@@ -792,7 +964,7 @@ globalThis.QuickfillReady = (async () => {
   // Page frameworks can replace root children without reloading the content script.
   new MutationObserver(()=>{if(isCurrent()&&visible&&host&&!host.isConnected){finishResize(false);mount();}}).observe(document,{childList:true,subtree:true});
   window.addEventListener('resize',()=>{if(isCurrent()){finishResize(false);applySidebarWidth();}});
-  if(standalone){toggle(true);settings();}
+  if(standalone){toggle(true);back();}
 })();
 globalThis.QuickfillReady.catch(error=>{console.error('Quickfill could not initialize:',error);globalThis.QuickfillReady=null;});
 }

@@ -530,3 +530,58 @@ test('readiness probe rejects unsupported pages and waits for initialization wit
     location:{protocol:'http:'},QuickfillReady:Promise.resolve(),setTimeout,clearTimeout
   }),true);
 });
+
+test('entry reorder persists relative moves and rejects cross-group drops', async () => {
+  const send=worker({entries:[
+    {id:'a',name:'A',values:{},pinned:false},
+    {id:'b',name:'B',values:{},pinned:false},
+    {id:'c',name:'C',values:{},pinned:false},
+    {id:'p',name:'Pinned',values:{},pinned:true}
+  ]});
+  let result=await send({type:'mutate',action:'reorder',id:'c',targetId:'a',after:false});
+  assert.equal(result.error,undefined);
+  assert.deepEqual((await send.read()).entryOrder,['p','c','a','b']);
+  result=await send({type:'mutate',action:'reorder',id:'c',targetId:'b',after:true});
+  assert.deepEqual(result.data.entryOrder,['p','a','b','c']);
+  const writes=send.writes();
+  result=await send({type:'mutate',action:'reorder',id:'c',targetId:'p',after:true});
+  assert.ok(result.error);
+  assert.equal(send.writes(),writes);
+});
+
+test('templates can be saved, associated, edited and deleted without altering entry values',async()=>{
+ const entry={id:'a',name:'Alice',color:'#315de4',values:{email:'a@example.com'}};
+ const send=worker({entries:[entry],associations:{}});
+ const template={id:'profile',name:'Profile',fields:[{key:'email',type:'string'}]};
+ assert.equal((await send({type:'mutate',action:'template-upsert',template})).error,undefined);
+ assert.equal((await send({type:'mutate',action:'upsert',entry:{...entry,templateId:'profile'}})).error,undefined);
+ await send({type:'mutate',action:'template-upsert',template:{...template,fields:[...template.fields,{key:'name',type:'string'}]}});
+ let saved=await send.read();
+ assert.equal(saved.entries[0].templateId,'profile');
+ assert.deepEqual(saved.entries[0].values,entry.values);
+ await send({type:'mutate',action:'template-delete',id:'profile'});
+ saved=await send.read();
+ assert.deepEqual(saved.templates,[]);
+ assert.equal(saved.entries[0].templateId,undefined);
+ assert.deepEqual(saved.entries[0].values,entry.values);
+ assert.ok((await send({type:'mutate',action:'upsert',entry:{...entry,templateId:'missing'}})).error);
+});
+
+test('bulk template association changes only the link and validates selections atomically',async()=>{
+ const template={id:'profile',name:'Profile',fields:[{key:'name',type:'string'},{key:'active',type:'bool'}]};
+ const entry={id:'a',name:'Alice',color:'#315de4',values:{name:'Alice',extra:'keep'},types:{name:'string'},templateId:'old'};
+ const other={...entry,id:'b',name:'Bob'};
+ const send=worker({templates:[template],entries:[entry,other],associations:{}});
+ let result=await send({type:'mutate',action:'template-associate',id:'profile',entryIds:['a']});
+ assert.equal(result.error,undefined);
+ let saved=await send.read();
+ assert.equal(saved.entries[0].templateId,'profile');
+ assert.deepEqual(saved.entries[0].values,entry.values);
+ assert.deepEqual(saved.entries[0].types,entry.types);
+ assert.deepEqual(saved.entries[1],other);
+ const writes=send.writes();
+ result=await send({type:'mutate',action:'template-associate',id:'profile',entryIds:['b','missing']});
+ assert.ok(result.error);
+ assert.equal(send.writes(),writes);
+ assert.deepEqual((await send.read()).entries,saved.entries);
+});

@@ -1,5 +1,5 @@
 importScripts('core.js', 'types.js', 'registry.js', 'power.js');
-const initial = () => ({entries: [], associations: {}, language:'auto', mappings:{},preferences:{},globalPreferences:QuickfillRegistry.globalSettings(),counters:{},onboardingDone:false});
+const initial = () => ({templates:[], entries: [], associations: {}, language:'auto', mappings:{},preferences:{},globalPreferences:QuickfillRegistry.globalSettings(),counters:{},onboardingDone:false});
 const read = async () => ({...initial(), ...(await chrome.storage.local.get('registry')).registry});
 const catalogs = Promise.all(['en','ru'].map(async language => [language, await (await fetch(chrome.runtime.getURL(`_locales/${language}/messages.json`))).json()])).then(Object.fromEntries);
 const locale = data => data.language && data.language !== 'auto' ? data.language : (chrome.i18n.getUILanguage().startsWith('ru') ? 'ru' : 'en');
@@ -98,8 +98,30 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     const catalog = await messages(data);
     const find = () => {const entry = data.entries.find(e => e.id === message.id); if (!entry) throw new Error(t('entryMissing')); return entry;};
     try {
-      if (message.action === 'upsert') {
+      if(message.action==='template-upsert'){
+        const template=QuickfillRegistry.template(message.template),index=data.templates.findIndex(item=>item.id===template.id);
+        if(index<0){if(data.templates.length>=500)throw new Error('invalidImport');data.templates.push(template);}else data.templates[index]=template;
+      } else if(message.action==='template-associate'){
+        const template=data.templates.find(item=>item.id===message.id);
+        if(!template||!Array.isArray(message.entryIds)||!message.entryIds.length||message.entryIds.length>500||message.entryIds.some(id=>typeof id!=='string'||!data.entries.some(entry=>entry.id===id)))throw new Error('invalidImport');
+        const selected=new Set(message.entryIds);
+        data.entries=data.entries.map(entry=>{
+          if(!selected.has(entry.id))return entry;
+          return {...entry,templateId:template.id};
+        });
+      } else if(message.action==='template-delete'){
+        data.templates=data.templates.filter(item=>item.id!==message.id);
+        data.entries=data.entries.map(item=>{if(item.templateId!==message.id)return item;const copy={...item};delete copy.templateId;return copy;});
+      } else if (message.action === 'reorder') {
+        const entry=find(), target=data.entries.find(e=>e.id===message.targetId);
+        if(!target || entry.id===target.id || !!entry.pinned!==!!target.pinned || typeof message.after!=='boolean')throw new Error('invalidImport');
+        const order=(data.entryOrder||QuickfillCore.ordered(data.entries,'').map(e=>e.id)).filter(id=>data.entries.some(e=>e.id===id)&&id!==entry.id);
+        for(const item of data.entries)if(item.id!==entry.id&&!order.includes(item.id))order.push(item.id);
+        order.splice(order.indexOf(target.id)+(message.after?1:0),0,entry.id);
+        data.entryOrder=order;
+      } else if (message.action === 'upsert') {
         const entry = QuickfillRegistry.entry(message.entry);
+        if(entry.templateId&&!data.templates.some(item=>item.id===entry.templateId))throw new Error('invalidImport');
         const index = data.entries.findIndex(item => item.id === entry.id);
         if (index < 0) {if (data.entries.length >= 500) throw new Error('invalidImport'); data.entries.push(entry);} else data.entries[index] = entry;
       } else if (message.action === 'delete') data.entries = data.entries.filter(entry => entry.id !== message.id);
